@@ -6,4 +6,5 @@ cdef extern from "JavaScriptCore/JSStringRef.h":
     size_t JSStringGetLength(JSStringRef string)
     JSChar* JSStringGetCharactersPtr(JSStringRef string)
     size_t JSStringGetMaximumUTF8CStringSize(JSStringRef string)
-    size_t JSStringGetUTF8CString(JSStringRef string, char* buffer, size_t bufferSize)
+    size_t JSStringGetUTF8CString(JSStringRef string, char* buffer,
+                                  size_t bufferSize)

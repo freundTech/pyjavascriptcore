@@ -33,14 +33,14 @@ class WebView(webkit.WebView):
         self.mainWindow.add(self.scrolledWindow)
         self.scrolledWindow.add(self)
         settings = self.get_settings()
-        settings.set_property("auto-load-images",False)
-        settings.set_property("enable-plugins",False)
-        self.connect("load-finished",self.load_finished_cb)
-        
+        settings.set_property("auto-load-images", False)
+        settings.set_property("enable-plugins", False)
+        self.connect("load-finished", self.load_finished_cb)
+
     def show_all(self):
         self.mainWindow.show_all()
 
-    def load_finished_cb(self,view,frame):
+    def load_finished_cb(self, view, frame):
         print "load_finished"
         ctx = jswebkit.JSContext(self.get_main_frame().get_global_context())
         window = ctx.EvaluateScript("window")
@@ -48,7 +48,7 @@ class WebView(webkit.WebView):
         #window.foo = "bar"
         #print ctx.EvaluateScript("window.foo")
         document = ctx.EvaluateScript("document")
-        #print "Title : ",document.title
+        #print "Title : ", document.title
         #form = document.forms[0]
         #print form.action
         #form.elements[1].value = "this is me"
@@ -57,10 +57,10 @@ class WebView(webkit.WebView):
         print atags.getPropertyNames()
         for a in atags :
             print a.href
-        
+
     def start(self):
         self.open("http://www.google.com")
-        
+
 try:
     view = WebView()
     view.show_all()

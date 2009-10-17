@@ -1,5 +1,9 @@
 cdef extern from "Python.h":
     ctypedef unsigned short Py_UNICODE
+
+    void Py_INCREF(object o)
+    void Py_DECREF(object o)
+
     char* PyCObject_GetDesc(object self)
     void* PyCObject_AsVoidPtr(object self)
     char* PyString_AsString(object o)

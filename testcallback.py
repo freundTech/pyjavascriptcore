@@ -1,19 +1,3 @@
-"""
-test file for cython wrapper for JSContextRef in pywebkitgtk
-This is the documentation :)
-you need cython to make it
-So you can call Javascript functions etc from python
-Made by john paul janecek
-Free Beer copyright, do what the heck you want with it, just give me credit
-Also do not blame me if your things blow up
-if you need to contact me, i might answer back :) I am lazy when it comes to making fixes
-unless I actually am using library myself :)
-
-my email
-import binascii
-binascii.a2b_base64('anBqYW5lY2VrQGdtYWlsLmNvbQ==\n')
-"""
-
 import gobject
 import gtk
 import pango
@@ -42,22 +26,17 @@ class WebView(webkit.WebView):
         print "load_finished"
         ctx = jswebkit.JSContext(self.get_main_frame().get_global_context())
         window = ctx.EvaluateScript("window")
-        #window.alert(None, "window")
-        #window.foo = "bar"
-        #print ctx.EvaluateScript("window.foo")
         document = ctx.EvaluateScript("document")
-        #print "Title : ", document.title
-        #form = document.forms[0]
-        #print form.action
-        #form.elements[1].value = "this is me"
-        #form.elements[2].click(form.elements[2])
-        atags = document.getElementsByTagName(document, "a")
-        print atags.getPropertyNames()
-        for a in atags :
-            print a.href
+
+        clickp = document.getElementById(document, 'clickp')
+        cll = jswebkit.JSCallable(self.event_cb, ctx)
+        clickp.addEventListener(clickp, 'click', cll, False)
+
+    def event_cb(self, event):
+        print 'You clicked on (%d, %d)' % (event.x, event.y)
 
     def start(self):
-        self.open("http://www.google.com")
+        self.open("file://test.html")
 
 
 if __name__ == '__main__':

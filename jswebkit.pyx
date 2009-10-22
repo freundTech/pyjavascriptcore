@@ -50,18 +50,15 @@ cdef object jsValueToPython(JSContextRef ctx, JSValueRef jsValue):
     cdef size_t strlen
 
     if jsType == kJSTypeUndefined or jsType == kJSTypeNull:
-        JSValueUnprotect(ctx, jsValue)
         return None
     elif jsType == kJSTypeBoolean:
         bResult = JSValueToBoolean(ctx, jsValue)
-        JSValueUnprotect(ctx, jsValue)
         if bResult:
             return True
         else:
             return False
     elif jsType == kJSTypeNumber:
         result = JSValueToNumber(ctx, jsValue, NULL)
-        JSValueUnprotect(ctx, jsValue)
         return result
     elif jsType == kJSTypeString:
         jsStr = JSValueToStringCopy(ctx, jsValue, NULL)
@@ -69,7 +66,6 @@ cdef object jsValueToPython(JSContextRef ctx, JSValueRef jsValue):
         result = PyUnicode_DecodeUTF16(JSStringGetCharactersPtr(jsStr),
                                        strlen, NULL, 0)
         JSStringRelease(jsStr)
-        JSValueUnprotect(ctx, jsValue)
         return result
     elif JSObjectIsFunction(ctx, jsValue) > 0:
         return makeJSFunction(ctx, jsValue)
@@ -148,6 +144,9 @@ cdef class JSObject:
 
     cdef setup(self, JSContextRef ctx, JSObjectRef jsObject):
         self.ctx = ctx
+        # __dealloc__ unprotects the JSObject, so that it's guaranteed
+        # to exist as long as this object exists.
+        JSValueProtect(self.ctx, jsObject)
         self.jsObject = jsObject
         self.propertyNames = dict.fromkeys(self.getPropertyNames(), True)
 
@@ -211,7 +210,7 @@ cdef class JSObject:
         if jsException != NULL:
             raise makeException(self.ctx, jsException)
 
-    def __del__(self):
+    def __dealloc__(self):
         JSValueUnprotect(self.ctx, self.jsObject)
 
     # these are container methods, so that lists behave correctly
@@ -287,6 +286,8 @@ cdef class JSBoundMethod(JSObject):
     cdef setup2(self, JSContextRef ctx, JSObjectRef jsObject,
                 JSObjectRef thisObj):
         JSObject.setup(self, ctx, jsObject)
+        # __dealloc__ unprotects thisObj, so that it's guaranteed to
+        # exist as long as this object exists.
         JSValueProtect(ctx, thisObj)
         self.thisObj = thisObj
 
@@ -341,7 +342,6 @@ cdef class JSContext:
                                                    <JSStringRef>NULL,
                                                    startingLineNumber,
                                                    &jsException)
-        JSValueProtect(self.jsCtx, jsValue)
         JSStringRelease(jsScript)
         if jsException != NULL:
             raise makeException(self.jsCtx, jsException)

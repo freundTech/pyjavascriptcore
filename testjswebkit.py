@@ -51,7 +51,7 @@ class WebView(webkit.WebView):
         #print form.action
         #form.elements[1].value = "this is me"
         #form.elements[2].click(form.elements[2])
-        atags = document.getElementsByTagName(document, "a")
+        atags = document.getElementsByTagName("a")
         print atags.getPropertyNames()
         for a in atags :
             print a.href

@@ -38,12 +38,11 @@ include "jsobjectref.pyi"
 cdef object jsValueToPython(JSContextRef ctx, JSValueRef jsValue):
     cdef JSStringRef jsStr
     cdef int jsType = JSValueGetType(ctx, jsValue)
-    cdef JSObject jsObject
-    cdef JSFunction jsFunction
     cdef object result
     cdef int isFunction
     cdef bool bResult
     cdef size_t strlen
+
     if jsType == kJSTypeUndefined or jsType == kJSTypeNull:
         JSValueUnprotect(ctx, jsValue)
         return None
@@ -67,15 +66,11 @@ cdef object jsValueToPython(JSContextRef ctx, JSValueRef jsValue):
         JSStringRelease(jsStr)
         JSValueUnprotect(ctx, jsValue)
         return result
+    elif JSObjectIsFunction(ctx, jsValue) > 0:
+        return makeJSFunction(ctx, jsValue)
     else:
-        if JSObjectIsFunction(ctx, jsValue) > 0:
-            jsFunction = JSFunction()
-            jsFunction.setup(ctx, jsValue)
-            return jsFunction
-        else:
-            jsObject = JSObject()
-            jsObject.setup(ctx, jsValue)
-            return jsObject
+        return makeJSObject(ctx, jsValue)
+
     return None
 
 
@@ -153,14 +148,18 @@ cdef class JSObject:
     def __getattr__(self, name):
         cdef JSStringRef jsStr
         cdef JSValueRef jsException
+        cdef JSValueRef jsResult
 
         try:
             self.propertyNames[name]
             jsStr = JSStringCreateWithUTF8CString(name) #has to be a UTF8 string
-            result = jsValueToPython(self.ctx,
-                                     JSObjectGetProperty(self.ctx,
-                                                         self.jsObject,
-                                                         jsStr, NULL))
+            jsResult = JSObjectGetProperty(self.ctx, self.jsObject,
+                                           jsStr, NULL)
+            if JSObjectIsFunction(self.ctx, jsResult):
+                result = makeJSBoundMethod(self.ctx, jsResult,
+                                           self.jsObject)
+            else:
+                result = jsValueToPython(self.ctx, jsResult)
             JSStringRelease(jsStr)
             return result
         except KeyError:
@@ -220,12 +219,14 @@ cdef class JSObject:
             length += int(self.length)
         return length
 
+cdef makeJSObject(JSContextRef ctx, JSObjectRef jsObject):
+    cdef JSObject obj = JSObject()
+    obj.setup(ctx, jsObject)
+    return obj
+
 
 cdef class JSFunction(JSObject):
-    def __init__(self):
-        JSObject.__init__(self)
-
-    def __call__(self, thisObj, *args):
+    def __call__(self, *args):
         cdef JSValueRef *jsArgs
         cdef JSValueRef result
         cdef JSObjectRef jsThisObject
@@ -237,17 +238,56 @@ cdef class JSFunction(JSObject):
             jsArgs = NULL
         for i, arg in enumerate(args):
             jsArgs[i] = pythonTojsValue(self.ctx, arg)
-        if thisObj:
-            jsThisObject = (<JSObject>thisObj).jsObject
-        else:
-            jsThisObject = NULL
         result = JSObjectCallAsFunction(self.ctx, self.jsObject,
-                                        jsThisObject, len(args), jsArgs,
+                                        NULL, len(args), jsArgs,
                                         &jsError)
         free(jsArgs)
         if jsError != NULL:
             raise makeException(self.ctx, jsError)
         return jsValueToPython(self.ctx, result)
+
+cdef makeJSFunction(JSContextRef ctx, JSObjectRef jsObject):
+    cdef JSFunction obj = JSFunction()
+    obj.setup(ctx, jsObject)
+    return obj
+
+
+cdef class JSBoundMethod(JSObject):
+    cdef JSObjectRef thisObj 
+
+    cdef setup2(self, JSContextRef ctx, JSObjectRef jsObject,
+                JSObjectRef thisObj):
+        JSObject.setup(self, ctx, jsObject)
+        JSValueProtect(ctx, thisObj)
+        self.thisObj = thisObj
+
+    def __call__(self, *args):
+        cdef JSValueRef *jsArgs
+        cdef JSValueRef result
+        cdef JSValueRef jsError = NULL
+
+        if len(args):
+            jsArgs = <JSValueRef *>malloc(len(args) * sizeof(JSValueRef))
+        else:
+            jsArgs = NULL
+        for i, arg in enumerate(args):
+            jsArgs[i] = pythonTojsValue(self.ctx, arg)
+        result = JSObjectCallAsFunction(self.ctx, self.jsObject,
+                                        self.thisObj, len(args), jsArgs,
+                                        &jsError)
+        free(jsArgs)
+        if jsError != NULL:
+            raise makeException(self.ctx, jsError)
+        return jsValueToPython(self.ctx, result)
+
+    def __dealloc__(self):
+        JSValueUnprotect(self.ctx, self.thisObj)
+
+cdef makeJSBoundMethod(JSContextRef ctx, JSObjectRef jsObject,
+                       JSObjectRef thisObj):
+    cdef JSBoundMethod obj = JSBoundMethod()
+    obj.setup2(ctx, jsObject, thisObj)
+    return obj
 
 
 cdef class JSContext:
@@ -290,7 +330,7 @@ cdef JSValueRef callableCb(JSContextRef ctx, JSObjectRef function,
             for i in range(argumentCount)]
     return pythonTojsValue(ctx, wrapped(*args))
     # TODO: Trap Python exceptions, wrap them into JS exceptions and
-    # send them to the back to the JS interpreter.
+    # send them back to the JS interpreter.
 
 cdef void finalizeCb(JSObjectRef function):
     cdef object wrapped = <object>JSObjectGetPrivate(function)

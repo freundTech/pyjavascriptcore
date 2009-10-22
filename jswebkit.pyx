@@ -35,7 +35,13 @@ include "jsvalueref.pyi"
 include "jsobjectref.pyi"
 
 
+#
+# Value Conversion
+#
+
 cdef object jsValueToPython(JSContextRef ctx, JSValueRef jsValue):
+    """Convert a JavaScript value into a Python value."""
+
     cdef JSStringRef jsStr
     cdef int jsType = JSValueGetType(ctx, jsValue)
     cdef object result
@@ -49,7 +55,7 @@ cdef object jsValueToPython(JSContextRef ctx, JSValueRef jsValue):
     elif jsType == kJSTypeBoolean:
         bResult = JSValueToBoolean(ctx, jsValue)
         JSValueUnprotect(ctx, jsValue)
-        if bResult > 0:
+        if bResult:
             return True
         else:
             return False
@@ -59,8 +65,7 @@ cdef object jsValueToPython(JSContextRef ctx, JSValueRef jsValue):
         return result
     elif jsType == kJSTypeString:
         jsStr = JSValueToStringCopy(ctx, jsValue, NULL)
-        strlen = JSStringGetLength(jsStr)
-        strlen *= 2
+        strlen = JSStringGetLength(jsStr) * 2
         result = PyUnicode_DecodeUTF16(JSStringGetCharactersPtr(jsStr),
                                        strlen, NULL, 0)
         JSStringRelease(jsStr)
@@ -75,6 +80,8 @@ cdef object jsValueToPython(JSContextRef ctx, JSValueRef jsValue):
 
 
 class JSException(Exception):
+    """Python exception class to encapsulate JavaScript exceptions."""
+
     def __init__(self, name, message):
         self.name = name
         self.mess = message
@@ -82,10 +89,11 @@ class JSException(Exception):
     def __str__(self):
         return "JSException name: %s message: %s" % (self.name, self.mess)
 
-
 cdef object makeException(JSContextRef ctx, JSValueRef jsException):
+    """Factory function for creating exception objects."""
     e = jsValueToPython(ctx, jsException)
     return JSException(e.name, e.message)
+
 
 cdef object JSStringRefToPython(JSStringRef jsString):
     cdef size_t strlen = JSStringGetLength(jsString)
@@ -103,6 +111,8 @@ cdef JSStringRef pythonToJSString(object pyStr):
     return jsStr
 
 cdef JSValueRef pythonTojsValue(JSContextRef ctx, object pyValue):
+    """Convert a Python value into a JavaScript value."""
+
     if isinstance(pyValue, types.NoneType):
         return JSValueMakeNull(ctx)
     elif isinstance(pyValue, types.BooleanType):
@@ -118,7 +128,14 @@ cdef JSValueRef pythonTojsValue(JSContextRef ctx, object pyValue):
     else:
         raise ValueError
 
+
+#
+# Python Wrappers for JavaScript objects
+#
+
 cdef class JSObject:
+    """Wrapper class to make JavaScript objects accessible from Python."""
+
     cdef JSContextRef ctx
     cdef JSObjectRef jsObject
     cdef object propertyNames
@@ -220,12 +237,16 @@ cdef class JSObject:
         return length
 
 cdef makeJSObject(JSContextRef ctx, JSObjectRef jsObject):
+    """Factory function for 'JSObject' instances."""
     cdef JSObject obj = JSObject()
     obj.setup(ctx, jsObject)
     return obj
 
 
 cdef class JSFunction(JSObject):
+    """Specialized wrapper class to make JavaScript functions callable
+    from Python."""
+
     def __call__(self, *args):
         cdef JSValueRef *jsArgs
         cdef JSValueRef result
@@ -247,12 +268,20 @@ cdef class JSFunction(JSObject):
         return jsValueToPython(self.ctx, result)
 
 cdef makeJSFunction(JSContextRef ctx, JSObjectRef jsObject):
+    """Factory function for 'JSFunction' instances."""
     cdef JSFunction obj = JSFunction()
     obj.setup(ctx, jsObject)
     return obj
 
 
 cdef class JSBoundMethod(JSObject):
+    """A JavaScript bound method.
+
+    Instances of this class operate in a similar way to Python bound
+    methods, but they encapsulate a JavaScript object and
+    function. When they are called, the function is called with the
+    object as 'this' object."""
+
     cdef JSObjectRef thisObj 
 
     cdef setup2(self, JSContextRef ctx, JSObjectRef jsObject,
@@ -285,12 +314,15 @@ cdef class JSBoundMethod(JSObject):
 
 cdef makeJSBoundMethod(JSContextRef ctx, JSObjectRef jsObject,
                        JSObjectRef thisObj):
+    """Factory function for 'JSBoundMethod' instances."""
     cdef JSBoundMethod obj = JSBoundMethod()
     obj.setup2(ctx, jsObject, thisObj)
     return obj
 
 
 cdef class JSContext:
+    """Wrapper class for JavaScriptCore context objects."""
+
     cdef JSContextRef jsCtx
     cdef object ctx
 
@@ -318,6 +350,10 @@ cdef class JSContext:
     def getCtx(self):
         return self.ctx
 
+
+#
+# JavaScript Wrappers for Python Objects
+#
 
 cdef JSValueRef callableCb(JSContextRef ctx, JSObjectRef function,
                            JSObjectRef thisObject, size_t argumentCount,

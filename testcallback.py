@@ -29,8 +29,7 @@ class WebView(webkit.WebView):
         document = ctx.EvaluateScript("document")
 
         clickp = document.getElementById('clickp')
-        cll = jswebkit.JSCallable(self.event_cb, ctx)
-        clickp.addEventListener('click', cll, False)
+        clickp.addEventListener('click', self.event_cb, False)
 
     def event_cb(self, event):
         print 'You clicked on (%d, %d)' % (event.x, event.y)

@@ -119,8 +119,8 @@ cdef JSValueRef pythonTojsValue(JSContextRef ctx, object pyValue):
         return JSValueMakeString(ctx, pythonToJSString(pyValue))
     elif isinstance(pyValue, JSObject):
         return (<JSObject>pyValue).jsObject
-    elif isinstance(pyValue, JSCallable):
-        return (<JSCallable>pyValue).jsFunction
+    elif callable(pyValue):
+        return makePyFunction(ctx, pyValue)
     else:
         raise ValueError
 
@@ -377,23 +377,6 @@ callableClassDef.callAsFunction = callableCb
 callableClassDef.finalize = finalizeCb
 cdef JSClassRef callableClass = JSClassCreate(&callableClassDef)
 
-cdef class JSCallable:
-    """A wrapper for Python callable objects that makes them callable
-    from JavaScript.
-
-    This is useful for attaching Python code as a callback to
-    JavaScript objects."""
-
-    cdef object wrapped
-    cdef JSObjectRef jsFunction
-
-    def __init__(self, wrapped, ctx):
-        self.wrapped = wrapped
-
-        if not isinstance(ctx, JSContext):
-            raise TypeError, "ctx must be a JSContext"
-        cdef JSContextRef jsCtx = (<JSContext>ctx).jsCtx
-
-        Py_INCREF(wrapped)
-        self.jsFunction = JSObjectMake(jsCtx, callableClass,
-                                       <void *>wrapped)
+cdef JSObjectRef makePyFunction(JSContextRef ctx, object function):
+        Py_INCREF(function)
+        return JSObjectMake(ctx, callableClass, <void *>function)

@@ -1,25 +1,26 @@
+# This file is part of PyJavaScriptCore, a binding between CPython and
+# WebKit's JavaScriptCore.
+#
+# Copyright (C) 2009, Martin Soto <soto@freedesktop.org>
+# Copyright (C) 2009, john paul janecek (see README file)
+#
+# PyJavaScriptCore is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public License
+# as published by the Free Software Foundation; either version 2 of
+# the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the
+# Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+# Boston, MA 02111-1307, USA. 
+
 """
-version 0.0003
-Applied the patches supplied by MonkeeSage Thanx :)
-This fixes the ucs2/ucs4 bug which I had earlier
-Also MonkeeSage fixed other things, he make call function nicer and fixed lists so the work properly
-Also fixed his patch so it works with both ucs2/ucs4 python
-Fixed the setup.py so that it can use pkg-config instead
-
-version 0.0002
-I need a versioning system lol
-cython wrapper for JSContextRef in pywebkitgtk
-you need cython to make it
-So you can call Javascript functions etc from python
-Made by john paul janecek
-Free Beer copyright, do what the heck you want with it, just give me credit
-Also do not blame me if your things blow up
-if you need to contact me, i might answer back :) I am lazy when it comes to making fixes
-unless I actually am using library myself :)
-
-my email
-import binascii
-binascii.a2b_base64('anBqYW5lY2VrQGdtYWlsLmNvbQ==\n')
+Two-way binding between CPython and WebKit's JavaScriptCore.
 """
 
 import sys

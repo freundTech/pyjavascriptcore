@@ -19,20 +19,19 @@ from Cython.Distutils import build_ext
 import subprocess
 
 pkgconfig = subprocess.Popen("pkg-config --cflags webkit-1.0",
-                                            stdout=subprocess.PIPE, shell=True)
+                             stdout=subprocess.PIPE, shell=True)
 pkgconfig.wait()
 extra_compile_args = pkgconfig.stdout.read().split()
 
 pkgconfig = subprocess.Popen("pkg-config --libs webkit-1.0",
-                                            stdout=subprocess.PIPE, shell=True)
+                             stdout=subprocess.PIPE, shell=True)
 pkgconfig.wait()
 extra_link_args = pkgconfig.stdout.read().split()
 
 setup(
     cmdclass = {'build_ext': build_ext},
-    ext_modules = [Extension("jswebkit", ["jswebkit.pyx"],
-                    extra_compile_args = extra_compile_args,
-                    extra_link_args = extra_link_args
-
-                    )]
-)
+    ext_modules = [Extension("javascriptcore", ["javascriptcore.pyx"],
+                             extra_compile_args = extra_compile_args,
+                             extra_link_args = extra_link_args
+                             )]
+    )

@@ -18,7 +18,8 @@ import gobject
 import gtk
 import pango
 import webkit
-import jswebkit
+
+import javascriptcore as jscore
 
 
 class WebView(webkit.WebView):
@@ -40,7 +41,7 @@ class WebView(webkit.WebView):
 
     def load_finished_cb(self, view, frame):
         print "load_finished"
-        ctx = jswebkit.JSContext(self.get_main_frame().get_global_context())
+        ctx = jscore.JSContext(self.get_main_frame().get_global_context())
         window = ctx.EvaluateScript("window")
         #window.alert(None, "window")
         #window.foo = "bar"

@@ -136,7 +136,6 @@ cdef class JSObject:
 
     cdef JSContextRef ctx
     cdef JSObjectRef jsObject
-    cdef object propertyNames
     cdef int index
 
     def __init__(self):
@@ -154,8 +153,6 @@ cdef class JSObject:
         self.jsObject = jsObject
         JSValueProtect(self.ctx, self.jsObject)
 
-        self.propertyNames = dict.fromkeys(self.getPropertyNames(), True)
-
     def getPropertyNames(self):
         cdef JSPropertyNameArrayRef nameArray = \
             JSObjectCopyPropertyNames(self.ctx, self.jsObject)
@@ -168,34 +165,46 @@ cdef class JSObject:
         return names
 
     def __getattr__(self, name):
-        cdef JSStringRef jsStr
-        cdef JSValueRef jsException
+        cdef JSStringRef jsName
+        cdef JSValueRef jsException = NULL
         cdef JSValueRef jsResult
 
+        jsName = JSStringCreateWithUTF8CString(name) #has to be a UTF8 string
         try:
-            self.propertyNames[name]
-            jsStr = JSStringCreateWithUTF8CString(name) #has to be a UTF8 string
+            if not JSObjectHasProperty(self.ctx, self.jsObject, jsName):
+                raise AttributeError, \
+                    "JavaScript object has no attribute '%s'" % name
+
             jsResult = JSObjectGetProperty(self.ctx, self.jsObject,
-                                           jsStr, NULL)
+                                           jsName, &jsException)
+            if jsException != NULL:
+                # TODO: Use the exception as an error message.
+                raise AttributeError, name
+                
             if JSObjectIsFunction(self.ctx, jsResult):
-                result = makeJSBoundMethod(self.ctx, jsResult,
-                                           self.jsObject)
+                # If this is a function, we mimic Python's behavior
+                # and return it bound to this object.
+                return makeJSBoundMethod(self.ctx, jsResult,
+                                         self.jsObject)
             else:
-                result = jsValueToPython(self.ctx, jsResult)
-            JSStringRelease(jsStr)
-            return result
-        except KeyError:
-            raise AttributeError, name
+                return jsValueToPython(self.ctx, jsResult)
+        finally:
+            JSStringRelease(jsName)
 
     def __setattr__(self, name, value):
-        cdef JSStringRef jsStr
+        cdef JSStringRef jsName
+        cdef JSValueRef jsException = NULL
 
-        self.propertyNames[name] = True
-        jsStr = JSStringCreateWithUTF8CString(name) #has to be a UTF8 string
-        JSObjectSetProperty(self.ctx, self.jsObject, jsStr,
-                            pythonTojsValue(self.ctx, value),
-                            kJSPropertyAttributeNone, NULL)
-        JSStringRelease(jsStr)
+        try:
+            jsName = JSStringCreateWithUTF8CString(name) #has to be a UTF8 string
+            JSObjectSetProperty(self.ctx, self.jsObject, jsName,
+                                pythonTojsValue(self.ctx, value),
+                                kJSPropertyAttributeNone, &jsException)
+            if jsException != NULL:
+                # TODO: Use the exception as an error message.
+                raise AttributeError, name
+        finally:
+            JSStringRelease(jsName)
 
     def __getitem__(self, key):
         cdef JSValueRef jsValueRef

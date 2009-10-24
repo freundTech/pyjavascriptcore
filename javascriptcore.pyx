@@ -145,11 +145,15 @@ cdef class JSObject:
         self.index = 0
 
     cdef setup(self, JSContextRef ctx, JSObjectRef jsObject):
+        # We claim ownership of objects here and release them in
+        # __dealloc__. Notice that we also need to own a reference to
+        # the context, because it may otherwise disappear while this
+        # object still exists.
         self.ctx = ctx
-        # __dealloc__ unprotects the JSObject, so that it's guaranteed
-        # to exist as long as this object exists.
-        JSValueProtect(self.ctx, jsObject)
+        JSGlobalContextRetain(self.ctx)
         self.jsObject = jsObject
+        JSValueProtect(self.ctx, self.jsObject)
+
         self.propertyNames = dict.fromkeys(self.getPropertyNames(), True)
 
     def getPropertyNames(self):
@@ -214,6 +218,7 @@ cdef class JSObject:
 
     def __dealloc__(self):
         JSValueUnprotect(self.ctx, self.jsObject)
+        JSGlobalContextRelease(self.ctx)
 
     # these are container methods, so that lists behave correctly
     def __iter__(self):
@@ -331,7 +336,7 @@ cdef class JSContext:
     provide any access to a DOM or any other browser-specific objects.
 
     A context obtained from another object (e.g. a WebKit browser
-    component can also be passed to the constructor in order to gaina
+    component can also be passed to the constructor in order to gain
     full access to it from Python.
     """
 

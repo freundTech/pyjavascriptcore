@@ -101,12 +101,13 @@ cdef object JSStringRefToPython(JSStringRef jsString):
                                    strlen, NULL, 0)
     return result
 
-cdef JSStringRef pythonToJSString(object pyStr):
-    """result has to be released"""
-    pyStr = unicode(pyStr).encode("utf-8")
-    cdef JSStringRef jsStr = JSStringCreateWithUTF8CString(
-        PyString_AsString(pyStr))
-    return jsStr
+cdef JSStringRef createJSStringFromPython(object pyStr):
+    """Create a ``JSString`` from a Python object.
+
+    This is a create function. Ownership of the result is trańsferred
+    to the caller."""
+    pyStr = unicode(pyStr).encode('utf-8')
+    return JSStringCreateWithUTF8CString(pyStr)
 
 cdef JSValueRef pythonTojsValue(JSContextRef ctx, object pyValue):
     """Convert a Python value into a JavaScript value."""
@@ -118,7 +119,7 @@ cdef JSValueRef pythonTojsValue(JSContextRef ctx, object pyValue):
     elif isinstance(pyValue, (types.IntType, types.FloatType)):
         return JSValueMakeNumber(ctx, pyValue)
     elif isinstance(pyValue, types.StringTypes):
-        return JSValueMakeString(ctx, pythonToJSString(pyValue))
+        return JSValueMakeString(ctx, createJSStringFromPython(pyValue))
     elif isinstance(pyValue, JSObject):
         return (<JSObject>pyValue).jsObject
     elif callable(pyValue):
@@ -169,7 +170,7 @@ cdef class JSObject:
         cdef JSValueRef jsException = NULL
         cdef JSValueRef jsResult
 
-        jsName = JSStringCreateWithUTF8CString(name) #has to be a UTF8 string
+        jsName = createJSStringFromPython(name)
         try:
             if not JSObjectHasProperty(self.ctx, self.jsObject, jsName):
                 raise AttributeError, \
@@ -195,8 +196,8 @@ cdef class JSObject:
         cdef JSStringRef jsName
         cdef JSValueRef jsException = NULL
 
+        jsName = createJSStringFromPython(name)
         try:
-            jsName = JSStringCreateWithUTF8CString(name) #has to be a UTF8 string
             JSObjectSetProperty(self.ctx, self.jsObject, jsName,
                                 pythonTojsValue(self.ctx, value),
                                 kJSPropertyAttributeNone, &jsException)
@@ -368,18 +369,21 @@ cdef class JSContext:
 
     def evaluateScript(self, script, thisObject=None , sourceURL=None,
                        startingLineNumber=1):
-        script = unicode(script).encode("utf-8")
-        cdef JSStringRef jsScript = \
-            JSStringCreateWithUTF8CString(PyString_AsString(script))
         cdef JSValueRef jsException = NULL
-        cdef JSValueRef jsValue = JSEvaluateScript(self.jsCtx, jsScript,
-                                                   <JSObjectRef>NULL,
-                                                   <JSStringRef>NULL,
-                                                   startingLineNumber,
-                                                   &jsException)
-        JSStringRelease(jsScript)
-        if jsException != NULL:
-            raise makeException(self.jsCtx, jsException)
+        cdef JSValueRef jsValue
+
+        cdef JSStringRef jsScript = createJSStringFromPython(script)
+        try:
+            jsValue = JSEvaluateScript(self.jsCtx, jsScript,
+                                       <JSObjectRef>NULL,
+                                       <JSStringRef>NULL,
+                                       startingLineNumber,
+                                       &jsException)
+            if jsException != NULL:
+                raise makeException(self.jsCtx, jsException)
+        finally:
+            JSStringRelease(jsScript)
+
         return jsValueToPython(self.jsCtx, jsValue)
 
     def getCtx(self):

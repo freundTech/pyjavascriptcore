@@ -31,6 +31,7 @@ cdef:
 include "stdlib.pyi"
 include "python.pyi"
 include "jsbase.pyi"
+include "jscontextref.pyi"
 include "jsstringref.pyi"
 include "jsvalueref.pyi"
 include "jsobjectref.pyi"
@@ -323,17 +324,36 @@ cdef makeJSBoundMethod(JSContextRef ctx, JSObjectRef jsObject,
 
 
 cdef class JSContext:
-    """Wrapper class for JavaScriptCore context objects."""
+    """Wrapper class for JavaScriptCore context objects.
+
+    Call the constructor without arguments to obtain a new default
+    context that can be used to execute JavaScript but that will not
+    provide any access to a DOM or any other browser-specific objects.
+
+    A context obtained from another object (e.g. a WebKit browser
+    component can also be passed to the constructor in order to gaina
+    full access to it from Python.
+    """
 
     cdef JSContextRef jsCtx
-    cdef object ctx
+    cdef object pyCtxExtern
 
-    def __init__(self, ctx):
-        self.ctx = ctx
-        self.jsCtx = <JSContextRef>PyCObject_AsVoidPtr(ctx)
+    def __cinit__(self, pyCtxExtern=None):
+        if pyCtxExtern is None:
+            # Create a new context.
+            self.jsCtx = JSGlobalContextCreate(NULL)
+            self.pyCtxExtern = None
+        else:
+            # Extract the actual context object.
+            self.jsCtx = <JSContextRef>PyCObject_AsVoidPtr(pyCtxExtern)
+            JSGlobalContextRetain(self.jsCtx)
+            self.pyCtxExtern = pyCtxExtern
 
-    def EvaluateScript(self, script, thisObject = None , sourceURL = None,
-                       startingLineNumber = 1):
+    def __init__(self, pyCtxExtern=None):
+        pass
+
+    def evaluateScript(self, script, thisObject=None , sourceURL=None,
+                       startingLineNumber=1):
         script = unicode(script).encode("utf-8")
         cdef JSStringRef jsScript = \
             JSStringCreateWithUTF8CString(PyString_AsString(script))
@@ -349,7 +369,10 @@ cdef class JSContext:
         return jsValueToPython(self.jsCtx, jsValue)
 
     def getCtx(self):
-        return self.ctx
+        return self.pyCtxExtern
+
+    def __dealloc__(self):
+        JSGlobalContextRelease(self.jsCtx)
 
 
 #

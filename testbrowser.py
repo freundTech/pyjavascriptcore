@@ -47,11 +47,11 @@ class WebView(webkit.WebView):
     def load_finished_cb(self, view, frame):
         print "load_finished"
         ctx = jscore.JSContext(self.get_main_frame().get_global_context())
-        window = ctx.EvaluateScript("window")
+        window = ctx.evaluateScript("window")
         #window.alert(None, "window")
         #window.foo = "bar"
-        #print ctx.EvaluateScript("window.foo")
-        document = ctx.EvaluateScript("document")
+        #print ctx.evaluateScript("window.foo")
+        document = ctx.evaluateScript("document")
         #print "Title : ", document.title
         #form = document.forms[0]
         #print form.action

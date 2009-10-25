@@ -72,12 +72,12 @@ class EvaluateScriptTestCase(unittest.TestCase):
         self.assertRaises(jscore.JSException, code)
 
 
-class ContextLiveTestCase(unittest.TestCase):
+class ContextLifeTestCase(unittest.TestCase):
     """Check that the context remains alive when Python still
     references some of its objects.
     """
 
-    def testContextLive(self):
+    def testContextLife(self):
         ctx = jscore.JSContext()
         obj = ctx.evaluateScript("""({a: 1, b: 'x'})""")
 

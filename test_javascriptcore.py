@@ -34,6 +34,12 @@ class EvaluateScriptTestCase(unittest.TestCase):
     def tearDown(self):
         del self.ctx
 
+    def testEvaluateBoolean1(self):
+        self.assertTrue(self.ctx.evaluateScript('true') is True)
+
+    def testEvaluateBoolean2(self):
+        self.assertTrue(self.ctx.evaluateScript('false') is False)
+
     def testEvaluateInt1(self):
         self.assertEqual(self.ctx.evaluateScript('3 + 2'), 5)
 
@@ -47,6 +53,9 @@ class EvaluateScriptTestCase(unittest.TestCase):
 
     def testEvaluateString1(self):
         self.assertEqual(self.ctx.evaluateScript('"a"'), 'a')
+
+    def testEvaluateFloat1(self):
+        self.assertAlmostEqual(self.ctx.evaluateScript('3.34'), 3.34)
 
     def testEvaluateObject1(self):
         # Object initializers are not expressions, the parenthesis

@@ -44,32 +44,24 @@ include "jsobjectref.pyi"
 cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):
     """Convert a JavaScript value into a Python value."""
 
-    cdef JSStringRef jsStr
     cdef int jsType = JSValueGetType(jsCtx, jsValue)
-    cdef object result
-    cdef int isFunction
-    cdef bool bResult
-    cdef size_t strlen
+    cdef JSStringRef jsStr
 
     if jsType == kJSTypeUndefined or jsType == kJSTypeNull:
         return None
     elif jsType == kJSTypeBoolean:
-        bResult = JSValueToBoolean(jsCtx, jsValue)
-        if bResult:
-            return True
-        else:
-            return False
+        return types.BooleanType(JSValueToBoolean(jsCtx, jsValue))
     elif jsType == kJSTypeNumber:
-        result = JSValueToNumber(jsCtx, jsValue, NULL)
-        return result
+        return JSValueToNumber(jsCtx, jsValue, NULL)
     elif jsType == kJSTypeString:
         jsStr = JSValueToStringCopy(jsCtx, jsValue, NULL)
-        strlen = JSStringGetLength(jsStr) * 2
-        result = PyUnicode_DecodeUTF16(JSStringGetCharactersPtr(jsStr),
-                                       strlen, NULL, 0)
-        JSStringRelease(jsStr)
-        return result
-    elif JSObjectIsFunction(jsCtx, jsValue) > 0:
+        try:
+            return PyUnicode_DecodeUTF16(JSStringGetCharactersPtr(jsStr),
+                                         JSStringGetLength(jsStr) * 2,
+                                         NULL, 0)
+        finally:
+            JSStringRelease(jsStr)
+    elif JSObjectIsFunction(jsCtx, jsValue):
         return makeJSFunction(jsCtx, jsValue)
     else:
         return makeJSObject(jsCtx, jsValue)
@@ -94,12 +86,9 @@ cdef object makeJSException(JSContextRef jsCtx, JSValueRef jsException):
 
 
 cdef object pyStringFromJS(JSStringRef jsString):
-    cdef size_t strlen = JSStringGetLength(jsString)
-
-    strlen *= 2
-    result = PyUnicode_DecodeUTF16(JSStringGetCharactersPtr(jsString),
-                                   strlen, NULL, 0)
-    return result
+    return PyUnicode_DecodeUTF16(JSStringGetCharactersPtr(jsString),
+                                 JSStringGetLength(jsString) * 2,
+                                 NULL, 0)
 
 cdef JSStringRef createJSStringFromPython(object pyStr):
     """Create a ``JSString`` from a Python object.

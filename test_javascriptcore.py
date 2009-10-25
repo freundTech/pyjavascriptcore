@@ -135,5 +135,32 @@ class AttributeAccessTestCase(unittest.TestCase):
         self.assertRaises(AttributeError, code)
 
 
+class FunctionCallTestCase(unittest.TestCase):
+    """Call JavaScript functions from Python."""
+
+    def setUp(self):
+        self.ctx = jscore.JSContext()
+
+    def tearDown(self):
+        del self.ctx
+
+    def testCalculate(self):
+        f = self.ctx.evaluateScript('(function(x, y) {return x + y})')
+        self.assertEqual(f(7, 9), 16)
+
+    def testPassReturn(self):
+        f = self.ctx.evaluateScript('(function(x) {return x})')
+        self.assertEqual(f(34), 34)
+        self.assertAlmostEqual(f(3.456), 3.456)
+        self.assertEqual(f('xcdf'), 'xcdf')
+
+    def testNumParams(self):
+        f = self.ctx.evaluateScript('(function() {return arguments.length})')
+        self.assertEqual(f(), 0)
+        self.assertEqual(f('x'), 1)
+        self.assertEqual(f('x', 'x'), 2)
+        self.assertEqual(f('x', 'x', 'x'), 3)
+
+
 if __name__ == '__main__':
     unittest.main()

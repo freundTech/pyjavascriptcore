@@ -24,15 +24,20 @@ import unittest
 import javascriptcore as jscore
 
 
-class EvaluateScriptTestCase(unittest.TestCase):
-    """Evaluate arbitrary expressions in the JavaScript interpreter.
-    """
+class TestCaseWithContext(unittest.TestCase):
+    """A fixture that creates a JavaScript global context for each
+    test method."""
 
     def setUp(self):
         self.ctx = jscore.JSContext()
 
     def tearDown(self):
         del self.ctx
+
+
+class EvaluateScriptTestCase(TestCaseWithContext):
+    """Evaluate arbitrary expressions in the JavaScript interpreter.
+    """
 
     def testEvaluateBoolean1(self):
         self.assertTrue(self.ctx.evaluateScript('true') is True)
@@ -92,12 +97,12 @@ class ContextLifeTestCase(unittest.TestCase):
         del obj
 
 
-class AttributeAccessTestCase(unittest.TestCase):
+class AttributeAccessTestCase(TestCaseWithContext):
     """Access the attributes of JavaScript objects from Python
     """
 
     def setUp(self):
-        self.ctx = jscore.JSContext()
+        TestCaseWithContext.setUp(self)
         self.obj = self.ctx.evaluateScript("""
           obj = {a: 1,
                  b: 'x',
@@ -105,9 +110,6 @@ class AttributeAccessTestCase(unittest.TestCase):
                      e: 'yy'}};
           obj;
           """)
-
-    def tearDown(self):
-        del self.ctx
 
     def testIntAccess(self):
         self.assertEqual(self.obj.a, 1)
@@ -135,14 +137,8 @@ class AttributeAccessTestCase(unittest.TestCase):
         self.assertRaises(AttributeError, code)
 
 
-class FunctionCallTestCase(unittest.TestCase):
+class FunctionCallTestCase(TestCaseWithContext):
     """Call JavaScript functions from Python."""
-
-    def setUp(self):
-        self.ctx = jscore.JSContext()
-
-    def tearDown(self):
-        del self.ctx
 
     def testCalculate(self):
         f = self.ctx.evaluateScript('(function(x, y) {return x + y})')

@@ -158,5 +158,46 @@ class FunctionCallTestCase(TestCaseWithContext):
         self.assertEqual(f('x', 'x', 'x'), 3)
 
 
+class MethodCallTestCase(TestCaseWithContext):
+    """Call JavaScript methods from Python."""
+
+    def setUp(self):
+        TestCaseWithContext.setUp(self)
+        self.obj = self.ctx.evaluateScript("""
+          obj = {a: 1,
+                 b: 'x',
+                 f: function(x, y) {return x + y},
+                 g: function(x) {return x},
+                 h: function() {return arguments.length},
+                 i: function() {return this.a},
+                 j: function() {return this.b},};
+          obj;
+          """)
+
+    def testCalculate(self):
+        self.assertEqual(self.obj.f(7, 9), 16)
+
+    def testPassReturn(self):
+        self.assertEqual(self.obj.g(34), 34)
+        self.assertAlmostEqual(self.obj.g(3.456), 3.456)
+        self.assertEqual(self.obj.g('xcdf'), 'xcdf')
+
+    def testNumParams(self):
+        self.assertEqual(self.obj.h(), 0)
+        self.assertEqual(self.obj.h('x'), 1)
+        self.assertEqual(self.obj.h('x', 'x'), 2)
+        self.assertEqual(self.obj.h('x', 'x', 'x'), 3)
+
+    def testThis(self):
+        self.assertEqual(self.obj.i(), 1)
+        self.assertEqual(self.obj.j(), 'x')
+
+    def testBound(self):
+        boundI = self.obj.i
+        self.assertEqual(boundI(), 1)
+        boundJ = self.obj.j
+        self.assertEqual(boundJ(), 'x')
+
+
 if __name__ == '__main__':
     unittest.main()

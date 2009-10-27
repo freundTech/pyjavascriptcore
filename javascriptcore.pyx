@@ -126,16 +126,20 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
 #
 
 cdef class JSObject:
-    """Wrapper class to make JavaScript objects accessible from Python."""
+    """Wrapper class to make JavaScript objects accessible from Python.
+
+    Since it is impossible to reliably distinguish between JavaScript
+    arrays and other types of objects, JObjects have the ability of
+    behaving like Python sequences. Some of the operations depend on
+    the presence of a 'length' property, and will fail with a
+    ``TypeError`` if it isn't present."""
 
     cdef JSContextRef jsCtx
     cdef JSObjectRef jsObject
-    cdef int index
 
     def __init__(self):
         self.jsCtx = NULL
         self.jsObject = NULL
-        self.index = 0
 
     cdef setup(self, JSContextRef jsCtx, JSObjectRef jsObject):
         # We claim ownership of objects here and release them in
@@ -146,6 +150,10 @@ cdef class JSObject:
         JSGlobalContextRetain(self.jsCtx)
         self.jsObject = jsObject
         JSValueProtect(self.jsCtx, self.jsObject)
+
+    def __dealloc__(self):
+        JSValueUnprotect(self.jsCtx, self.jsObject)
+        JSGlobalContextRelease(self.jsCtx)
 
     def getPropertyNames(self):
         cdef JSPropertyNameArrayRef nameArray = \
@@ -200,6 +208,18 @@ cdef class JSObject:
         finally:
             JSStringRelease(jsName)
 
+    def __contains__(self, item):
+        pass
+
+    def __len__(self):
+        try:
+            return int(self.length)
+        except AttributeError:
+            raise TypeError, "Not an array or array-like JavaScript object"
+
+    def __iter__(self):
+        return _JSObjectIterator(self)
+
     def __getitem__(self, key):
         cdef JSValueRef jsValueRef
         cdef JSValueRef jsException = NULL
@@ -219,37 +239,44 @@ cdef class JSObject:
         if jsException != NULL:
             raise makeJSException(self.jsCtx, jsException)
 
-    def __dealloc__(self):
-        JSValueUnprotect(self.jsCtx, self.jsObject)
-        JSGlobalContextRelease(self.jsCtx)
+    def __delitem__(self, key):
+        pass
 
-    # these are container methods, so that lists behave correctly
-    def __iter__(self):
-        return self
-
-    def __next__(self): # 2.6 and 3.0 now use __next__
-        if self.index < self.length:
-            value = self[self.index]
-            self.index += 1
-            return value
-        else:
-            self.index = 0
-            raise StopIteration
-
-    def next(self): # wrapper for backwards compatibility
-        return self.__next__()
-
-    def __len__(self):
-        length = len(self.getPropertyNames())
-        if hasattr(self, "length"):
-            length += int(self.length)
-        return length
+    def insert(self, pos, item):
+        pass
 
 cdef makeJSObject(JSContextRef jsCtx, JSObjectRef jsObject):
     """Factory function for 'JSObject' instances."""
     cdef JSObject obj = JSObject()
     obj.setup(jsCtx, jsObject)
     return obj
+
+
+cdef class _JSObjectIterator:
+    """Iterator class for JavaScript array-like objects."""
+
+    cdef JSObject pyObj
+    cdef int index
+
+    def __init__(self, pyObj):
+        self.pyObj = pyObj
+        self.index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.index < self.pyObj.__len__():
+            value = self.pyObj[self.index]
+            self.index += 1
+            return value
+        else:
+            raise StopIteration
+
+    def next(self):
+        """Wrap the ``__next__`` method for backwards compatibility.
+        """
+        return self.__next__()
 
 
 cdef class JSFunction(JSObject):

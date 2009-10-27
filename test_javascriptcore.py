@@ -199,5 +199,21 @@ class MethodCallTestCase(TestCaseWithContext):
         self.assertEqual(boundJ(), 'x')
 
 
+class ArrayTestCase(TestCaseWithContext):
+    """Call JavaScript methods from Python."""
+
+    def setUp(self):
+        TestCaseWithContext.setUp(self)
+        self.obj = self.ctx.evaluateScript("""
+          ([1, 2, 3, 4, 5])
+          """)
+
+    def testIterate1(self):
+        i = 0
+        for elem in self.obj:
+            i += 1
+        self.assertEqual(i, 5)
+
+
 if __name__ == '__main__':
     unittest.main()

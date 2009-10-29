@@ -214,6 +214,33 @@ class ArrayTestCase(TestCaseWithContext):
             i += 1
         self.assertEqual(i, 5)
 
+    def testIterate2(self):
+        i = 0
+        for elem1 in self.obj:
+            for elem2 in self.obj:
+                i += 1
+        self.assertEqual(i, 25)
+
+    def testIterate3(self):
+        itr1 = iter(self.obj)
+        itr2 = iter(self.obj)
+
+        def next1(): return itr1.next()
+        def next2(): return itr2.next()
+
+        self.assertEqual(next1(), 1)
+        self.assertEqual(next1(), 2)
+        self.assertEqual(next2(), 1)
+        self.assertEqual(next1(), 3)
+        self.assertEqual(next2(), 2)
+        self.assertEqual(next2(), 3)
+        self.assertEqual(next2(), 4)
+        self.assertEqual(next1(), 4)
+        self.assertEqual(next1(), 5)
+        self.assertRaises(StopIteration, next1)
+        self.assertEqual(next2(), 5)
+        self.assertRaises(StopIteration, next2)
+
 
 if __name__ == '__main__':
     unittest.main()

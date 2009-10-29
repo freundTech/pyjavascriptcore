@@ -25,6 +25,8 @@ Two-way binding between CPython and WebKit's JavaScriptCore.
 
 import sys
 import types
+import collections
+
 cdef:
     ctypedef unsigned short bool
 
@@ -113,8 +115,8 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
         return JSValueMakeNumber(jsCtx, pyValue)
     elif isinstance(pyValue, types.StringTypes):
         return JSValueMakeString(jsCtx, createJSStringFromPython(pyValue))
-    elif isinstance(pyValue, JSObject):
-        return (<JSObject>pyValue).jsObject
+    elif isinstance(pyValue, _JSObject):
+        return (<_JSObject>pyValue).jsObject
     elif callable(pyValue):
         return makePyFunction(jsCtx, pyValue)
     else:
@@ -125,7 +127,7 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
 # Python Wrappers for JavaScript objects
 #
 
-cdef class JSObject:
+cdef class _JSObject:
     """Wrapper class to make JavaScript objects accessible from Python.
 
     Since it is impossible to reliably distinguish between JavaScript
@@ -245,9 +247,14 @@ cdef class JSObject:
     def insert(self, pos, item):
         pass
 
+
+class JSObject(_JSObject, collections.MutableSequence):
+    __slots__ = ()
+
+
 cdef makeJSObject(JSContextRef jsCtx, JSObjectRef jsObject):
-    """Factory function for 'JSObject' instances."""
-    cdef JSObject obj = JSObject()
+    """Factory function for '_JSObject' instances."""
+    cdef _JSObject obj = JSObject()
     obj.setup(jsCtx, jsObject)
     return obj
 
@@ -255,7 +262,7 @@ cdef makeJSObject(JSContextRef jsCtx, JSObjectRef jsObject):
 cdef class _JSObjectIterator:
     """Iterator class for JavaScript array-like objects."""
 
-    cdef JSObject pyObj
+    cdef _JSObject pyObj
     cdef int index
 
     def __init__(self, pyObj):
@@ -279,7 +286,7 @@ cdef class _JSObjectIterator:
         return self.__next__()
 
 
-cdef class JSFunction(JSObject):
+cdef class JSFunction(_JSObject):
     """Specialized wrapper class to make JavaScript functions callable
     from Python."""
 
@@ -310,7 +317,7 @@ cdef makeJSFunction(JSContextRef jsCtx, JSObjectRef jsObject):
     return obj
 
 
-cdef class JSBoundMethod(JSObject):
+cdef class JSBoundMethod(_JSObject):
     """A JavaScript bound method.
 
     Instances of this class operate in a similar way to Python bound
@@ -322,7 +329,7 @@ cdef class JSBoundMethod(JSObject):
 
     cdef setup2(self, JSContextRef jsCtx, JSObjectRef jsObject,
                 JSObjectRef thisObj):
-        JSObject.setup(self, jsCtx, jsObject)
+        _JSObject.setup(self, jsCtx, jsObject)
         # __dealloc__ unprotects thisObj, so that it's guaranteed to
         # exist as long as this object exists.
         JSValueProtect(jsCtx, thisObj)

@@ -200,13 +200,35 @@ class MethodCallTestCase(TestCaseWithContext):
 
 
 class ArrayTestCase(TestCaseWithContext):
-    """Call JavaScript methods from Python."""
+    """Work with JavaScript array-like objects from Python."""
 
     def setUp(self):
         TestCaseWithContext.setUp(self)
         self.obj = self.ctx.evaluateScript("""
           ([1, 2, 3, 4, 5])
           """)
+
+    def testLen1(self):
+        self.assertEqual(len(self.obj), 5)
+
+    def testIndexing1(self):
+        self.assertEqual(self.obj[0], 1)
+        self.assertEqual(self.obj[2], 3)
+        self.assertEqual(self.obj[4], 5)
+
+    def xtestIndexing2(self):
+        # TODO: Raise exceptions when JavaScript returns 'undefined'.
+        def get(): return self.obj[6]
+        self.assertRaises(get, Exception)
+
+    def testIndexing3(self):
+        self.obj[0] = 10
+        self.obj[2] = 20
+        self.obj[4] = 40
+        self.assertEqual(self.obj[0], 10)
+        self.assertEqual(self.obj[2], 20)
+        self.assertEqual(self.obj[4], 40)
+        self.assertEqual(len(self.obj), 5)
 
     def testIterate1(self):
         i = 0

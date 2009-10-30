@@ -35,6 +35,36 @@ class TestCaseWithContext(unittest.TestCase):
         del self.ctx
 
 
+class GlobalObjectTestCase(TestCaseWithContext):
+    """Access JavaScript objects directly through the context's global
+    object."""
+
+    def testAccess1(self):
+        self.ctx.evaluateScript("""
+          a = 1;
+          b = 'x';
+          c = 2.3;
+          """)
+        self.assertEqual(self.ctx.globalObject.a, 1)
+        self.assertEqual(self.ctx.globalObject.b, 'x')
+        self.assertAlmostEqual(self.ctx.globalObject.c, 2.3)
+
+    def assertNoVariable(self, varName):
+        def evalVar(): self.ctx.evaluateScript(varName)
+        self.assertRaises(jscore.JSException, evalVar)
+
+    def testAccess2(self):
+        self.assertNoVariable('a')
+        self.assertNoVariable('b')
+        self.assertNoVariable('c')
+        self.ctx.globalObject.a = 1
+        self.ctx.globalObject.b = 'x'
+        self.ctx.globalObject.c = 2.3
+        self.assertEqual(self.ctx.evaluateScript('a'), 1)
+        self.assertEqual(self.ctx.evaluateScript('b'), 'x')
+        self.assertAlmostEqual(self.ctx.evaluateScript('c'), 2.3)
+
+
 class EvaluateScriptTestCase(TestCaseWithContext):
     """Evaluate arbitrary expressions in the JavaScript interpreter.
     """

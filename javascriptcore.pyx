@@ -394,6 +394,13 @@ cdef class JSContext:
     def __init__(self, pyCtxExtern=None):
         pass
 
+    property globalObject:
+        """Global object for this context."""
+
+        def __get__(self):
+            return jsToPython(self.jsCtx,
+                              JSContextGetGlobalObject(self.jsCtx))
+
     def evaluateScript(self, script, thisObject=None , sourceURL=None,
                        startingLineNumber=1):
         cdef JSValueRef jsException = NULL

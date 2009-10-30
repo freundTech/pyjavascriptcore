@@ -1,4 +1,6 @@
 cdef extern from "JavaScriptCore/JSContextRef.h":
+    JSObjectRef JSContextGetGlobalObject(JSContextRef ctx)
+
     JSContextGroupRef JSContextGroupCreate()
 
     void JSContextGroupRelease(JSContextGroupRef group)

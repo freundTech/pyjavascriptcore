@@ -20,55 +20,14 @@
 # Boston, MA 02111-1307, USA. 
 
 cdef extern from "JavaScriptCore/JSObjectRef.h":
+
     enum :
         kJSPropertyAttributeNone, kJSPropertyAttributeReadOnly, 
         kJSPropertyAttributeDontEnum, kJSPropertyAttributeDontDelete
+
     ctypedef unsigned JSPropertyAttributes
 
     ctypedef struct JSClassDefinition
-
-    JSClassRef JSClassCreate(JSClassDefinition* definition)
-
-
-    bool JSObjectHasProperty(JSContextRef ctx, JSObjectRef object,
-                             JSStringRef propertyName)
-    JSValueRef JSObjectGetProperty(JSContextRef ctx, JSObjectRef object,
-                                   JSStringRef propertyName,
-                                   JSValueRef* exception)
-    void JSObjectSetProperty(JSContextRef ctx, JSObjectRef object,
-                             JSStringRef propertyName, JSValueRef value,
-                             JSPropertyAttributes attributes,
-                             JSValueRef* exception)
-    void JSObjectDeleteProperty(JSContextRef ctx, JSObjectRef object,
-                                JSStringRef propertyName,
-                                JSValueRef* exception)
-    JSValueRef JSObjectGetPropertyAtIndex(JSContextRef ctx,
-                                          JSObjectRef object,
-                                          unsigned propertyIndex,
-                                          JSValueRef* exception)
-    void JSObjectSetPropertyAtIndex(JSContextRef ctx, JSObjectRef object,
-                                    unsigned propertyIndex,
-                                    JSValueRef value, JSValueRef* exception)
-    void* JSObjectGetPrivate(JSObjectRef object)
-    bool JSObjectSetPrivate(JSObjectRef object, void* data)
-    bool JSObjectIsFunction(JSContextRef ctx, JSObjectRef object)
-    JSValueRef JSObjectCallAsFunction(JSContextRef ctx, JSObjectRef object,
-                                      JSObjectRef thisObject,
-                                      size_t argumentCount,
-                                      JSValueRef arguments[],
-                                      JSValueRef* exception)
-    JSObjectIsConstructor(JSContextRef ctx, JSObjectRef object)
-    JSPropertyNameArrayRef JSObjectCopyPropertyNames(JSContextRef ctx,
-                                                     JSObjectRef object)
-    JSPropertyNameArrayRef JSPropertyNameArrayRetain(
-        JSPropertyNameArrayRef array)
-    void JSPropertyNameArrayRelease(JSPropertyNameArrayRef array)
-    size_t JSPropertyNameArrayGetCount(JSPropertyNameArrayRef array)
-    JSStringRef JSPropertyNameArrayGetNameAtIndex(
-        JSPropertyNameArrayRef array, size_t index)
-    void JSPropertyNameAccumulatorAddName(
-        JSPropertyNameAccumulatorRef accumulator, JSStringRef propertyName)
-
 
     ctypedef unsigned JSClassAttributes
 
@@ -145,14 +104,75 @@ cdef extern from "JavaScriptCore/JSObjectRef.h":
         JSObjectHasInstanceCallback hasInstance
         JSObjectConvertToTypeCallback convertToType
 
-    JSClassDefinition kJSClassDefinitionEmpty
+    JSClassRef JSClassCreate(JSClassDefinition* definition)
 
-    JSObjectRef JSObjectMake(
-        JSContextRef ctx,
-        JSClassRef jsClass,
-        void *data)
+    JSValueRef JSObjectCallAsFunction(JSContextRef ctx, JSObjectRef object,
+                                      JSObjectRef thisObject,
+                                      size_t argumentCount,
+                                      JSValueRef arguments[],
+                                      JSValueRef* exception)
+
+    JSPropertyNameArrayRef JSObjectCopyPropertyNames(JSContextRef ctx,
+                                                     JSObjectRef object)
+
+    void* JSObjectGetPrivate(JSObjectRef object)
+
+    JSValueRef JSObjectGetProperty(JSContextRef ctx, JSObjectRef object,
+                                   JSStringRef propertyName,
+                                   JSValueRef* exception)
+
+    JSValueRef JSObjectGetPropertyAtIndex(JSContextRef ctx,
+                                          JSObjectRef object,
+                                          unsigned propertyIndex,
+                                          JSValueRef* exception)
+
+    void JSObjectDeleteProperty(JSContextRef ctx, JSObjectRef object,
+                                JSStringRef propertyName,
+                                JSValueRef* exception)
+
+    bool JSObjectHasProperty(JSContextRef ctx, JSObjectRef object,
+                             JSStringRef propertyName)
+
+    JSObjectIsConstructor(JSContextRef ctx, JSObjectRef object)
+
+    bool JSObjectIsFunction(JSContextRef ctx, JSObjectRef object)
+
+    JSObjectRef JSObjectMake(JSContextRef ctx, JSClassRef jsClass,
+                             void *data)
+
+    JSObjectRef JSObjectMakeError(JSContextRef ctx, size_t argumentCount,
+                                  JSValueRef arguments[],
+                                  JSValueRef* exception)
 
     JSObjectRef JSObjectMakeFunctionWithCallback(
-        JSContextRef ctx,
-        JSStringRef name,
+        JSContextRef ctx, JSStringRef name,
         JSObjectCallAsFunctionCallback callAsFunction)
+
+    bool JSObjectSetPrivate(JSObjectRef object, void* data)
+
+    void JSObjectSetProperty(JSContextRef ctx, JSObjectRef object,
+                             JSStringRef propertyName, JSValueRef value,
+                             JSPropertyAttributes attributes,
+                             JSValueRef* exception)
+
+    void JSObjectSetPropertyAtIndex(JSContextRef ctx, JSObjectRef object,
+                                    unsigned propertyIndex,
+                                    JSValueRef value, JSValueRef* exception)
+
+    void JSPropertyNameAccumulatorAddName(
+        JSPropertyNameAccumulatorRef accumulator, JSStringRef propertyName)
+
+    size_t JSPropertyNameArrayGetCount(JSPropertyNameArrayRef array)
+
+    JSStringRef JSPropertyNameArrayGetNameAtIndex(
+        JSPropertyNameArrayRef array, size_t index)
+
+    void JSPropertyNameArrayRelease(JSPropertyNameArrayRef array)
+
+    JSPropertyNameArrayRef JSPropertyNameArrayRetain(
+        JSPropertyNameArrayRef array)
+
+
+    # Variables
+
+    JSClassDefinition kJSClassDefinitionEmpty

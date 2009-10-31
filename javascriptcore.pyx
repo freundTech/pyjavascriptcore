@@ -117,10 +117,9 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
         return JSValueMakeString(jsCtx, createJSStringFromPython(pyValue))
     elif isinstance(pyValue, _JSObject):
         return (<_JSObject>pyValue).jsObject
-    elif callable(pyValue):
-        return makePyFunction(jsCtx, pyValue)
     else:
-        raise ValueError
+        # Wrap all other Python objects into a generic wrapper.
+        return makePyObject(jsCtx, pyValue)
 
 
 #
@@ -435,6 +434,7 @@ cdef JSValueRef callableCb(JSContextRef jsCtx, JSObjectRef function,
                            JSObjectRef thisObject, size_t argumentCount,
                            JSValueRef arguments[],
                            JSValueRef* exception) with gil:
+    """Invoked when a wrapper object is called as a function."""
     cdef object wrapped = <object>JSObjectGetPrivate(function)
     cdef int i
 
@@ -445,14 +445,19 @@ cdef JSValueRef callableCb(JSContextRef jsCtx, JSObjectRef function,
     # send them back to the JS interpreter.
 
 cdef void finalizeCb(JSObjectRef function):
+    """Invoked when a wrapper object is garbage-collected."""
     cdef object wrapped = <object>JSObjectGetPrivate(function)
     Py_DECREF(wrapped)
 
-cdef JSClassDefinition callableClassDef = kJSClassDefinitionEmpty
-callableClassDef.callAsFunction = callableCb
-callableClassDef.finalize = finalizeCb
-cdef JSClassRef callableClass = JSClassCreate(&callableClassDef)
+# Initialize the class definition structure for the wrapper objects.
+cdef JSClassDefinition pyObjectClassDef = kJSClassDefinitionEmpty
+pyObjectClassDef.callAsFunction = callableCb
+pyObjectClassDef.finalize = finalizeCb
 
-cdef JSObjectRef makePyFunction(JSContextRef jsCtx, object function):
-        Py_INCREF(function)
-        return JSObjectMake(jsCtx, callableClass, <void *>function)
+# The wrapper object class.
+cdef JSClassRef pyObjectClass = JSClassCreate(&pyObjectClassDef)
+
+cdef JSObjectRef makePyObject(JSContextRef jsCtx, object function):
+    """Wrap a Python object into a JavaScript object."""
+    Py_INCREF(function)
+    return JSObjectMake(jsCtx, pyObjectClass, <void *>function)

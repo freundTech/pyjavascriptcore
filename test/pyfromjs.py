@@ -27,4 +27,23 @@ from base import TestCaseWithContext
 
 class FunctionCallTestCase(TestCaseWithContext):
     """Call Python functions from JavaScript."""
-    pass
+
+    def testCalculate(self):
+        def f(x, y): return x + y
+        self.ctx.globalObject.f = f
+        self.assertEqual(self.ctx.evaluateScript('f(7, 9)'), 16)
+
+    def testPassReturn(self):
+        def f(x): return x
+        self.ctx.globalObject.f = f
+        self.assertEqual(self.ctx.evaluateScript('f(34)'), 34)
+        self.assertAlmostEqual(self.ctx.evaluateScript('f(3.456)'), 3.456)
+        self.assertEqual(self.ctx.evaluateScript("f('xcdf')"), 'xcdf')
+
+    def testNumParams(self):
+        def f(*args): return len(args)
+        self.ctx.globalObject.f = f
+        self.assertEqual(self.ctx.evaluateScript("f()"), 0)
+        self.assertEqual(self.ctx.evaluateScript("f('x')"), 1)
+        self.assertEqual(self.ctx.evaluateScript("f('x', 'x')"), 2)
+        self.assertEqual(self.ctx.evaluateScript("f('x', 'x', 'x')"), 3)

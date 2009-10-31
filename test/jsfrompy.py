@@ -89,10 +89,16 @@ class EvaluateScriptTestCase(TestCaseWithContext):
         self.assertEqual(obj.a, 1)
         self.assertEqual(obj.b, 'x')
 
-    def testEvaluateError(self):
+    def testEvaluateError1(self):
         def code():
             program = '(function(x){return x+2 return})(3)'
             self.assertEqual(self.ctx.evaluateScript(program), 5)
+
+        self.assertRaises(jscore.JSException, code)
+
+    def testEvaluateError2(self):
+        def code():
+            self.ctx.evaluateScript('throw Error("Message");')
 
         self.assertRaises(jscore.JSException, code)
 
@@ -197,6 +203,10 @@ class FunctionCallTestCase(TestCaseWithContext):
         self.assertEqual(f('x', 'x'), 2)
         self.assertEqual(f('x', 'x', 'x'), 3)
 
+    def testException(self):
+        f = self.ctx.evaluateScript('(function() {throw Error("Message");})')
+        self.assertRaises(jscore.JSException, f)
+
 
 class MethodCallTestCase(TestCaseWithContext):
     """Call JavaScript methods from Python."""
@@ -210,7 +220,9 @@ class MethodCallTestCase(TestCaseWithContext):
                  g: function(x) {return x},
                  h: function() {return arguments.length},
                  i: function() {return this.a},
-                 j: function() {return this.b},};
+                 j: function() {return this.b},
+                 k: function() {throw Error('Message')},
+                };
           obj;
           """)
 
@@ -237,6 +249,9 @@ class MethodCallTestCase(TestCaseWithContext):
         self.assertEqual(boundI(), 1)
         boundJ = self.obj.j
         self.assertEqual(boundJ(), 'x')
+
+    def testException(self):
+        self.assertRaises(jscore.JSException, self.obj.k)
 
 
 class ArrayTestCase(TestCaseWithContext):

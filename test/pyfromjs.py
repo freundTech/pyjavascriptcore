@@ -74,3 +74,26 @@ class FunctionCallTestCase(TestCaseWithContext):
         self.assertEqual(self.ctx.evaluateScript("f('x')"), 1)
         self.assertEqual(self.ctx.evaluateScript("f('x', 'x')"), 2)
         self.assertEqual(self.ctx.evaluateScript("f('x', 'x', 'x')"), 3)
+
+    def testExceptionSimple(self):
+        def f(): raise Exception('-*Message*-')
+        self.ctx.globalObject.f = f
+        msg = self.ctx.evaluateScript("""
+            try {
+                f();
+                msg = '';
+            } catch (e) {
+                msg = e.message;
+            }
+            msg;
+            """)
+        self.assertEqual(msg, '-*Message*-')
+
+    def testExceptionRoundTrip(self):
+        def f(): raise Exception('-*Message*-')
+        self.ctx.globalObject.f = f
+        try:
+            self.ctx.evaluateScript("f()")
+            self.fail("No exception raised")
+        except jscore.JSException as e:
+            self.assertEqual(str(e), '-*Message*-')

@@ -77,17 +77,27 @@ cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):
 class JSException(Exception):
     """Python exception class to encapsulate JavaScript exceptions."""
 
-    def __init__(self, name, message):
-        self.name = name
-        self.mess = message
+    def __init__(self, pyWrapped):
+        """Create a JavaScript exception object.#
+
+        The parameter is the original exception object thrown by the
+        JavaScript code, wrapped as a Python object."""
+        self.pyWrapped = pyWrapped
+        try:
+            self.name = pyWrapped.name
+        except AttributeError:
+            self.name = '<Unknown error>'
+        try:
+            self.message = pyWrapped.message
+        except AttributeError:
+            self.message = '<no message>'
 
     def __str__(self):
-        return "JSException name: %s message: %s" % (self.name, self.mess)
+        return self.message
 
-cdef object makeJSException(JSContextRef jsCtx, JSValueRef jsException):
+cdef object jsExceptionToPython(JSContextRef jsCtx, JSValueRef jsException):
     """Factory function for creating exception objects."""
-    e = jsToPython(jsCtx, jsException)
-    return JSException(e.name, e.message)
+    return JSException(jsToPython(jsCtx, jsException))
 
 
 cdef object pyStringFromJS(JSStringRef jsString):
@@ -235,7 +245,7 @@ cdef class _JSObject:
         jsValueRef = JSObjectGetPropertyAtIndex(self.jsCtx, self.jsObject,
                                                 key, &jsException)
         if jsException != NULL:
-            raise makeJSException(self.jsCtx, jsException)
+            raise jsExceptionToPython(self.jsCtx, jsException)
         return jsToPython(self.jsCtx, jsValueRef)
 
     def __setitem__(self, key, value):
@@ -245,7 +255,7 @@ cdef class _JSObject:
         JSObjectSetPropertyAtIndex(self.jsCtx, self.jsObject, key, jsValue,
                                    &jsException)
         if jsException != NULL:
-            raise makeJSException(self.jsCtx, jsException)
+            raise jsExceptionToPython(self.jsCtx, jsException)
 
     def __delitem__(self, key):
         pass
@@ -313,7 +323,7 @@ cdef class JSFunction(_JSObject):
                                         &jsError)
         free(jsArgs)
         if jsError != NULL:
-            raise makeJSException(self.jsCtx, jsError)
+            raise jsExceptionToPython(self.jsCtx, jsError)
         return jsToPython(self.jsCtx, result)
 
 cdef makeJSFunction(JSContextRef jsCtx, JSObjectRef jsObject):
@@ -357,7 +367,7 @@ cdef class JSBoundMethod(_JSObject):
                                         &jsError)
         free(jsArgs)
         if jsError != NULL:
-            raise makeJSException(self.jsCtx, jsError)
+            raise jsExceptionToPython(self.jsCtx, jsError)
         return jsToPython(self.jsCtx, result)
 
     def __dealloc__(self):
@@ -407,7 +417,7 @@ cdef class JSContext:
             return jsToPython(self.jsCtx,
                               JSContextGetGlobalObject(self.jsCtx))
 
-    def evaluateScript(self, script, thisObject=None , sourceURL=None,
+    def evaluateScript(self, script, thisObject=None, sourceURL=None,
                        startingLineNumber=1):
         cdef JSValueRef jsException = NULL
         cdef JSValueRef jsValue
@@ -420,7 +430,7 @@ cdef class JSContext:
                                        startingLineNumber,
                                        &jsException)
             if jsException != NULL:
-                raise makeJSException(self.jsCtx, jsException)
+                raise jsExceptionToPython(self.jsCtx, jsException)
         finally:
             JSStringRelease(jsScript)
 
@@ -437,34 +447,55 @@ cdef class JSContext:
 # JavaScript Wrappers for Python Objects
 #
 
-cdef JSValueRef callableCb(JSContextRef jsCtx, JSObjectRef function,
-                           JSObjectRef thisObject, size_t argumentCount,
-                           JSValueRef arguments[],
-                           JSValueRef* exception) with gil:
-    """Invoked when a wrapper object is called as a function."""
-    cdef object wrapped = <object>JSObjectGetPrivate(function)
+cdef JSValueRef pyExceptionToJS(JSContextRef jsCtx, object exc):
+    """Make a JavaScript exception object from a Python exception
+    object."""
+    cdef JSStringRef jsMsgStr
+    cdef JSValueRef jsMsg
+
+    # Make a string from the exception object (the unicode conversion
+    # in createJSStringFromPython takes care of extracting the
+    # message).
+    jsMsgStr = createJSStringFromPython(exc)
+    jsMsg = JSValueMakeString(jsCtx, jsMsgStr)
+    JSStringRelease(jsMsgStr)
+
+    return JSObjectMakeError(jsCtx, 1, &jsMsg, NULL)
+
+
+# PythonObject operations:
+
+cdef JSValueRef callableCb(JSContextRef jsCtx, JSObjectRef jsObj,
+                           JSObjectRef jsThisObj, size_t argumentCount,
+                           JSValueRef jsArgs[],
+                           JSValueRef* jsExc) with gil:
+    """Invoked when a wrapper object is called as a jsObj."""
+    cdef object wrapped = <object>JSObjectGetPrivate(jsObj)
     cdef int i
+    cdef JSValueRef
 
-    args = [jsToPython(jsCtx, arguments[i])
+    args = [jsToPython(jsCtx, jsArgs[i])
             for i in range(argumentCount)]
-    return pythonToJS(jsCtx, wrapped(*args))
-    # TODO: Trap Python exceptions, wrap them into JS exceptions and
-    # send them back to the JS interpreter.
+    try:
+        return pythonToJS(jsCtx, wrapped(*args))
+    except BaseException, e:
+        jsExc[0] = pyExceptionToJS(jsCtx, e)
 
-cdef void finalizeCb(JSObjectRef function):
+cdef void finalizeCb(JSObjectRef jsObj):
     """Invoked when a wrapper object is garbage-collected."""
-    cdef object wrapped = <object>JSObjectGetPrivate(function)
+    cdef object wrapped = <object>JSObjectGetPrivate(jsObj)
     Py_DECREF(wrapped)
 
 # Initialize the class definition structure for the wrapper objects.
 cdef JSClassDefinition pyObjectClassDef = kJSClassDefinitionEmpty
+pyObjectClassDef.className = 'PythonObject'
 pyObjectClassDef.callAsFunction = callableCb
 pyObjectClassDef.finalize = finalizeCb
 
 # The wrapper object class.
 cdef JSClassRef pyObjectClass = JSClassCreate(&pyObjectClassDef)
 
-cdef JSObjectRef makePyObject(JSContextRef jsCtx, object function):
+cdef JSObjectRef makePyObject(JSContextRef jsCtx, object jsObj):
     """Wrap a Python object into a JavaScript object."""
-    Py_INCREF(function)
-    return JSObjectMake(jsCtx, pyObjectClass, <void *>function)
+    Py_INCREF(jsObj)
+    return JSObjectMake(jsCtx, pyObjectClass, <void *>jsObj)

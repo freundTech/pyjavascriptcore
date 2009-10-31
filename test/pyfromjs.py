@@ -25,6 +25,33 @@ import javascriptcore as jscore
 from base import TestCaseWithContext
 
 
+class WrapUnwrapTestCase(TestCaseWithContext):
+    """Wrap objects and unwrap them again.
+    """
+
+    def setUp(self):
+        TestCaseWithContext.setUp(self)
+        self.obj = (1, 2, 3)
+
+    def testWrapUnwrap1(self):
+        s = self.ctx.evaluateScript('(function(o) { obj = o; })')
+        s(self.obj)
+        self.assertTrue(self.obj is self.ctx.globalObject.obj)
+
+    def testWrapUnwrap2(self):
+        self.ctx.globalObject.obj = self.obj
+        self.assertTrue(self.obj is self.ctx.globalObject.obj)
+
+    def testWrapUnwrap3(self):
+        self.ctx.globalObject.obj = self.obj
+        g = self.ctx.evaluateScript('(function() { return obj; })')
+        self.assertTrue(self.obj is g())
+
+    def testWrapUnwrap4(self):
+        self.ctx.globalObject.obj = self.obj
+        self.assertTrue(self.obj is self.ctx.evaluateScript('obj'))
+
+
 class FunctionCallTestCase(TestCaseWithContext):
     """Call Python functions from JavaScript."""
 

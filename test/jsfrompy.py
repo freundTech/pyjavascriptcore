@@ -117,6 +117,26 @@ class ContextLifeTestCase(unittest.TestCase):
         del obj
 
 
+class WrapUnwrapTestCase(TestCaseWithContext):
+    """Wrap objects and unwrap them again.
+    """
+
+    def setUp(self):
+        TestCaseWithContext.setUp(self)
+        self.obj = self.ctx.evaluateScript("""
+          obj = {a: 1, b: 'x'};
+          obj;
+          """)
+
+    def testWrapUnwrap1(self):
+        self.ctx.globalObject.obj2 = self.obj
+        self.assertTrue(self.ctx.evaluateScript('obj === obj2'))
+
+    def testWrapUnwrap2(self):
+        self.ctx.globalObject.obj2 = self.ctx.globalObject.obj
+        self.assertTrue(self.ctx.evaluateScript('obj === obj2'))
+
+
 class AttributeAccessTestCase(TestCaseWithContext):
     """Access the attributes of JavaScript objects from Python
     """

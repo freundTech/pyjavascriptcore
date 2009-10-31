@@ -63,6 +63,9 @@ cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):
                                          NULL, 0)
         finally:
             JSStringRelease(jsStr)
+    elif JSValueIsObjectOfClass(jsCtx, jsValue, pyObjectClass):
+        # This is a wrapped Python object. Just unwrap it.
+        return <object>JSObjectGetPrivate(jsValue)
     elif JSObjectIsFunction(jsCtx, jsValue):
         return makeJSFunction(jsCtx, jsValue)
     else:
@@ -116,6 +119,7 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
     elif isinstance(pyValue, types.StringTypes):
         return JSValueMakeString(jsCtx, createJSStringFromPython(pyValue))
     elif isinstance(pyValue, _JSObject):
+        # This is a wrapped JavaScript object, just unwrap it.
         return (<_JSObject>pyValue).jsObject
     else:
         # Wrap all other Python objects into a generic wrapper.
@@ -183,10 +187,13 @@ cdef class _JSObject:
             if jsException != NULL:
                 # TODO: Use the exception as an error message.
                 raise AttributeError, name
-                
-            if JSObjectIsFunction(self.jsCtx, jsResult):
-                # If this is a function, we mimic Python's behavior
-                # and return it bound to this object.
+
+            if not JSValueIsObjectOfClass(self.jsCtx, jsResult,
+                                          pyObjectClass) and \
+                    JSObjectIsFunction(self.jsCtx, jsResult):
+                # This is a native JavaScript function, we mimic
+                # Python's behavior and return it bound to this
+                # object.
                 return makeJSBoundMethod(self.jsCtx, jsResult,
                                          self.jsObject)
             else:

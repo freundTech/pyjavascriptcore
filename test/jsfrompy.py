@@ -2,7 +2,6 @@
 # WebKit's JavaScriptCore.
 #
 # Copyright (C) 2009, Martin Soto <soto@freedesktop.org>
-# Copyright (C) 2009, john paul janecek (see README file)
 #
 # PyJavaScriptCore is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public License
@@ -23,16 +22,7 @@ import unittest
 
 import javascriptcore as jscore
 
-
-class TestCaseWithContext(unittest.TestCase):
-    """A fixture that creates a JavaScript global context for each
-    test method."""
-
-    def setUp(self):
-        self.ctx = jscore.JSContext()
-
-    def tearDown(self):
-        del self.ctx
+from base import TestCaseWithContext
 
 
 class GlobalObjectTestCase(TestCaseWithContext):
@@ -292,7 +282,3 @@ class ArrayTestCase(TestCaseWithContext):
         self.assertRaises(StopIteration, next1)
         self.assertEqual(next2(), 5)
         self.assertRaises(StopIteration, next2)
-
-
-if __name__ == '__main__':
-    unittest.main()

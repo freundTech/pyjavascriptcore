@@ -32,3 +32,9 @@ class TestCaseWithContext(unittest.TestCase):
 
     def tearDown(self):
         del self.ctx
+
+    def assertEqualJS(self, jsExpr, value):
+        self.assertEqual(self.ctx.evaluateScript(jsExpr), value)
+
+    def assertAlmostEqualJS(self, jsExpr, value):
+        self.assertAlmostEqual(self.ctx.evaluateScript(jsExpr), value)

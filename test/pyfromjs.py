@@ -58,22 +58,22 @@ class FunctionCallTestCase(TestCaseWithContext):
     def testCalculate(self):
         def f(x, y): return x + y
         self.ctx.globalObject.f = f
-        self.assertEqual(self.ctx.evaluateScript('f(7, 9)'), 16)
+        self.assertEqualJS('f(7, 9)', 16)
 
     def testPassReturn(self):
         def f(x): return x
         self.ctx.globalObject.f = f
-        self.assertEqual(self.ctx.evaluateScript('f(34)'), 34)
-        self.assertAlmostEqual(self.ctx.evaluateScript('f(3.456)'), 3.456)
-        self.assertEqual(self.ctx.evaluateScript("f('xcdf')"), 'xcdf')
+        self.assertEqualJS('f(34)', 34)
+        self.assertAlmostEqualJS('f(3.456)', 3.456)
+        self.assertEqualJS("f('xcdf')", 'xcdf')
 
     def testNumParams(self):
         def f(*args): return len(args)
         self.ctx.globalObject.f = f
-        self.assertEqual(self.ctx.evaluateScript("f()"), 0)
-        self.assertEqual(self.ctx.evaluateScript("f('x')"), 1)
-        self.assertEqual(self.ctx.evaluateScript("f('x', 'x')"), 2)
-        self.assertEqual(self.ctx.evaluateScript("f('x', 'x', 'x')"), 3)
+        self.assertEqualJS("f()", 0)
+        self.assertEqualJS("f('x')", 1)
+        self.assertEqualJS("f('x', 'x')", 2)
+        self.assertEqualJS("f('x', 'x', 'x')", 3)
 
     def testExceptionSimple(self):
         def f(): raise Exception('-*Message*-')

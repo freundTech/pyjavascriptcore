@@ -117,8 +117,8 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
     """Convert a Python value into a JavaScript value.
 
     The returned value belongs to the specified context, and must be
-    protected if they are going to be permanently stored (e.g., inside
-    an object)."""
+    protected if it is going to be permanently stored (e.g., inside an
+    object)."""
 
     if isinstance(pyValue, types.NoneType):
         return JSValueMakeNull(jsCtx)
@@ -465,19 +465,49 @@ cdef JSValueRef pyExceptionToJS(JSContextRef jsCtx, object exc):
 
 # PythonObject operations:
 
-cdef JSValueRef callableCb(JSContextRef jsCtx, JSObjectRef jsObj,
-                           JSObjectRef jsThisObj, size_t argumentCount,
-                           JSValueRef jsArgs[],
+cdef JSValueRef pyObjGetProperty(JSContextRef jsCtx,
+                                 JSObjectRef jsObj,
+                                 JSStringRef jsPropertyName,
+                                 JSValueRef* jsExc) with gil:
+    """Invoked to get properties in a wrapped object."""
+    cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
+    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+
+    try:
+        return pythonToJS(jsCtx, getattr(pyObj, pyPropertyName))
+    except BaseException, e:
+        jsExc[0] = pyExceptionToJS(jsCtx, e)
+
+cdef bool pyObjSetProperty(JSContextRef jsCtx,
+                           JSObjectRef jsObj,
+                           JSStringRef jsPropertyName,
+                           JSValueRef jsValue,
                            JSValueRef* jsExc) with gil:
-    """Invoked when a wrapper object is called as a jsObj."""
-    cdef object wrapped = <object>JSObjectGetPrivate(jsObj)
+    """Invoked to set properties in a wrapped object."""
+    cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
+    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+    cdef object pyValue = jsToPython(jsCtx, jsValue)
+
+    try:
+        setattr(pyObj, pyPropertyName, pyValue)
+        return True
+    except BaseException, e:
+        jsExc[0] = pyExceptionToJS(jsCtx, e)
+
+cdef JSValueRef pyObjCallAsFunction(JSContextRef jsCtx,
+                                    JSObjectRef jsObj,
+                                    JSObjectRef jsThisObj,
+                                    size_t argumentCount,
+                                    JSValueRef jsArgs[],
+                                    JSValueRef* jsExc) with gil:
+    """Invoked when a wrapped object is called as a function."""
+    cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
     cdef int i
-    cdef JSValueRef
 
     args = [jsToPython(jsCtx, jsArgs[i])
             for i in range(argumentCount)]
     try:
-        return pythonToJS(jsCtx, wrapped(*args))
+        return pythonToJS(jsCtx, pyObj(*args))
     except BaseException, e:
         jsExc[0] = pyExceptionToJS(jsCtx, e)
 
@@ -489,7 +519,9 @@ cdef void finalizeCb(JSObjectRef jsObj):
 # Initialize the class definition structure for the wrapper objects.
 cdef JSClassDefinition pyObjectClassDef = kJSClassDefinitionEmpty
 pyObjectClassDef.className = 'PythonObject'
-pyObjectClassDef.callAsFunction = callableCb
+pyObjectClassDef.getProperty = pyObjGetProperty
+pyObjectClassDef.setProperty = pyObjSetProperty
+pyObjectClassDef.callAsFunction = pyObjCallAsFunction
 pyObjectClassDef.finalize = finalizeCb
 
 # The wrapper object class.

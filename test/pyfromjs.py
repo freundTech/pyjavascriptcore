@@ -52,6 +52,44 @@ class WrapUnwrapTestCase(TestCaseWithContext):
         self.assertTrue(self.obj is self.ctx.evaluateScript('obj'))
 
 
+class AttributeAccessTestCase(TestCaseWithContext):
+    """Access the attributes of Python objects from JavaScript
+    """
+
+    def setUp(self):
+        TestCaseWithContext.setUp(self)
+        class A: pass
+        obj = A()
+        obj.a, obj.b, obj.c = 1, 'x', A()
+        obj.c.d, obj.c.e = 2, 'yy'
+        self.obj = obj
+        self.ctx.globalObject.obj = obj
+
+    def testIntAccess(self):
+        self.assertEqualJS('obj.a', 1)
+
+    def testStringAccess(self):
+        self.assertEqualJS('obj.b', 'x')
+
+    def testNestedObjectAccess(self):
+        self.assertEqualJS('obj.c.d', 2)
+        self.assertEqualJS('obj.c.e', 'yy')
+
+    def testAccessChanged(self):
+        self.assertEqualJS('obj.a', 1)
+        self.obj.a = 4
+        self.assertEqualJS('obj.a', 4)
+
+    def testAccessJSNew(self):
+        self.obj.f = 4
+        self.assertEqualJS('obj.f', 4)
+
+    def testSet(self):
+        self.assertEqual(self.obj.a, 1)
+        self.ctx.evaluateScript('obj.a = 4')
+        self.assertEqual(self.obj.a, 4)
+
+
 class FunctionCallTestCase(TestCaseWithContext):
     """Call Python functions from JavaScript."""
 

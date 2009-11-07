@@ -52,6 +52,18 @@ class WrapUnwrapTestCase(TestCaseWithContext):
         self.assertTrue(self.obj is self.ctx.evaluateScript('obj'))
 
 
+class NullUndefTestCase(TestCaseWithContext):
+    """Access JavaScript's null and undefined values."""
+
+    def testUndef1(self):
+         self.ctx.globalObject.ud = None
+         self.assertEqualJS("ud === undefined", True)
+
+    def testNull1(self):
+         self.ctx.globalObject.n = jscore.Null
+         self.assertEqualJS("n === null", True)
+
+
 class AttributeAccessTestCase(TestCaseWithContext):
     """Access the attributes of Python objects from JavaScript
     """

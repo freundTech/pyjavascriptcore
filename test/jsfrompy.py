@@ -143,6 +143,31 @@ class WrapUnwrapTestCase(TestCaseWithContext):
         self.assertTrue(self.ctx.evaluateScript('obj === obj2'))
 
 
+class NullUndefTestCase(TestCaseWithContext):
+    """Access JavaScript's null and undefined values."""
+
+    def testUndef1(self):
+        self.assertTrue(self.ctx.evaluateScript('undefined') is None)
+
+    def testUndef2(self):
+        """JavaScript functions without a return  produce None in Python."""
+        self.assertTrue(self.ctx.evaluateScript('(function(){})()') is None)
+
+    def testNull1(self):
+        self.assertTrue(self.ctx.evaluateScript('null') is jscore.Null)
+
+    def testNull2(self):
+        """Null is false."""
+        self.assertFalse(self.ctx.evaluateScript('null'))
+
+    def testNull3(self):
+        """Null is a singleton."""
+        def code():
+            n = type(jscore.Null)()
+
+        self.assertRaises(TypeError, code)
+
+
 class AttributeAccessTestCase(TestCaseWithContext):
     """Access the attributes of JavaScript objects from Python
     """

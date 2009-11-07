@@ -40,6 +40,29 @@ include "jsobjectref.pyi"
 
 
 #
+# Null Singleton
+#
+
+class NullType(object):
+    """A singleton type to represent JavaScript's `null` value in
+    Python."""
+
+    def __init__(self):
+        # Make this a singleton class.
+        if Null is not None:
+            raise TypeError("cannot create '%s' instances"
+                            % self.__class__.__name__)
+
+    def __nonzero__(self):
+        # As in javascript, the Null value has a false boolean value.
+        return False
+
+# Create the actual Null singleton.
+Null = None
+Null = NullType()
+
+
+#
 # Value Conversion
 #
 
@@ -49,8 +72,10 @@ cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):
     cdef int jsType = JSValueGetType(jsCtx, jsValue)
     cdef JSStringRef jsStr
 
-    if jsType == kJSTypeUndefined or jsType == kJSTypeNull:
+    if jsType == kJSTypeUndefined:
         return None
+    if jsType == kJSTypeNull:
+        return Null
     elif jsType == kJSTypeBoolean:
         return types.BooleanType(JSValueToBoolean(jsCtx, jsValue))
     elif jsType == kJSTypeNumber:
@@ -121,6 +146,8 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
     object)."""
 
     if isinstance(pyValue, types.NoneType):
+        return JSValueMakeUndefined(jsCtx)
+    elif isinstance(pyValue, NullType):
         return JSValueMakeNull(jsCtx)
     elif isinstance(pyValue, types.BooleanType):
         return JSValueMakeBoolean(jsCtx, pyValue)

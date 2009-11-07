@@ -496,6 +496,19 @@ cdef JSValueRef pyExceptionToJS(JSContextRef jsCtx, object exc):
 
 # PythonObject operations:
 
+cdef bool pyObjHasProperty(JSContextRef jsCtx,
+                           JSObjectRef jsObj,
+                           JSStringRef jsPropertyName):
+    """Invoked to determine if an an object has a property with the
+    given name."""
+    cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
+    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+
+    try:
+        return hasattr(pyObj, pyPropertyName)
+    except BaseException:
+        return False
+
 cdef JSValueRef pyObjGetProperty(JSContextRef jsCtx,
                                  JSObjectRef jsObj,
                                  JSStringRef jsPropertyName,
@@ -554,6 +567,7 @@ cdef void finalizeCb(JSObjectRef jsObj):
 # Initialize the class definition structure for the wrapper objects.
 cdef JSClassDefinition pyObjectClassDef = kJSClassDefinitionEmpty
 pyObjectClassDef.className = 'PythonObject'
+pyObjectClassDef.hasProperty = pyObjHasProperty
 pyObjectClassDef.getProperty = pyObjGetProperty
 pyObjectClassDef.setProperty = pyObjSetProperty
 pyObjectClassDef.callAsFunction = pyObjCallAsFunction

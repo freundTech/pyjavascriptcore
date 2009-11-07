@@ -211,6 +211,11 @@ class AttributeAccessTestCase(TestCaseWithContext):
     def testAccessUndef(self):
         self.assertTrue(self.obj.d is None)
 
+    def testHasattr(self):
+        self.assertTrue(hasattr(self.obj, 'a'))
+        self.assertTrue(hasattr(self.obj, 'd'))
+        self.assertFalse(hasattr(self.obj, 'abc'))
+
 
 class FunctionCallTestCase(TestCaseWithContext):
     """Call JavaScript functions from Python."""

@@ -89,11 +89,9 @@ class AttributeAccessTestCase(TestCaseWithContext):
 
     def testAccessInexistent(self):
         self.assertTrueJS('obj.abc === undefined')
-        # TODO: Test that attribute doesn't exist.
 
     def testAccessNone(self):
         self.assertTrueJS('obj.d === undefined')
-        # TODO: Test that attribute does exist.
 
     def testAccessChanged(self):
         self.assertEqualJS('obj.a', 1)
@@ -108,6 +106,11 @@ class AttributeAccessTestCase(TestCaseWithContext):
         self.assertEqual(self.obj.a, 1)
         self.ctx.evaluateScript('obj.a = 4')
         self.assertEqual(self.obj.a, 4)
+
+    def testHasOwnProp(self):
+        self.assertTrueJS("obj.hasOwnProperty('a')")
+        self.assertTrueJS("obj.hasOwnProperty('d')")
+        self.assertTrueJS("!obj.hasOwnProperty('abc')")
 
 
 class FunctionCallTestCase(TestCaseWithContext):

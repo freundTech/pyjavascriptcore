@@ -115,6 +115,10 @@ cdef extern from "JavaScriptCore/JSObjectRef.h":
     JSPropertyNameArrayRef JSObjectCopyPropertyNames(JSContextRef ctx,
                                                      JSObjectRef object)
 
+    bool JSObjectDeleteProperty(JSContextRef ctx, JSObjectRef object,
+                                JSStringRef propertyName,
+                                JSValueRef* exception)
+
     void* JSObjectGetPrivate(JSObjectRef object)
 
     JSValueRef JSObjectGetProperty(JSContextRef ctx, JSObjectRef object,
@@ -125,10 +129,6 @@ cdef extern from "JavaScriptCore/JSObjectRef.h":
                                           JSObjectRef object,
                                           unsigned propertyIndex,
                                           JSValueRef* exception)
-
-    void JSObjectDeleteProperty(JSContextRef ctx, JSObjectRef object,
-                                JSStringRef propertyName,
-                                JSValueRef* exception)
 
     bool JSObjectHasProperty(JSContextRef ctx, JSObjectRef object,
                              JSStringRef propertyName)

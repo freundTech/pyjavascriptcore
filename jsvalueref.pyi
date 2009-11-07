@@ -30,6 +30,8 @@ cdef extern from "JavaScriptCore/JSValueRef.h":
     bool JSValueIsObjectOfClass(JSContextRef ctx, JSValueRef value,
                                 JSClassRef jsClass)
 
+    bool JSValueIsUndefined(JSContextRef ctx, JSValueRef value)
+
     JSValueRef JSValueMakeBoolean(JSContextRef ctx, bool boolean)
 
     JSValueRef JSValueMakeNull(JSContextRef ctx)

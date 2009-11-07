@@ -72,7 +72,7 @@ class AttributeAccessTestCase(TestCaseWithContext):
         TestCaseWithContext.setUp(self)
         class A: pass
         obj = A()
-        obj.a, obj.b, obj.c = 1, 'x', A()
+        obj.a, obj.b, obj.c, obj.d = 1, 'x', A(), None
         obj.c.d, obj.c.e = 2, 'yy'
         self.obj = obj
         self.ctx.globalObject.obj = obj
@@ -86,6 +86,14 @@ class AttributeAccessTestCase(TestCaseWithContext):
     def testNestedObjectAccess(self):
         self.assertEqualJS('obj.c.d', 2)
         self.assertEqualJS('obj.c.e', 'yy')
+
+    def testAccessInexistent(self):
+        self.assertTrueJS('obj.abc === undefined')
+        # TODO: Test that attribute doesn't exist.
+
+    def testAccessNone(self):
+        self.assertTrueJS('obj.d === undefined')
+        # TODO: Test that attribute does exist.
 
     def testAccessChanged(self):
         self.assertEqualJS('obj.a', 1)

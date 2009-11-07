@@ -178,7 +178,8 @@ class AttributeAccessTestCase(TestCaseWithContext):
           obj = {a: 1,
                  b: 'x',
                  c: {d: 2,
-                     e: 'yy'}};
+                     e: 'yy'},
+                 d: undefined};
           obj;
           """)
 
@@ -206,6 +207,9 @@ class AttributeAccessTestCase(TestCaseWithContext):
             print self.obj.abc
 
         self.assertRaises(AttributeError, code)
+
+    def testAccessUndef(self):
+        self.assertTrue(self.obj.d is None)
 
 
 class FunctionCallTestCase(TestCaseWithContext):

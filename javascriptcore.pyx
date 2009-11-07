@@ -208,26 +208,31 @@ cdef class _JSObject:
         JSPropertyNameArrayRelease(nameArray)
         return names
 
-    def __getattr__(self, name):
+    def __getattr__(self, pyName):
         cdef JSStringRef jsName
         cdef JSValueRef jsException = NULL
         cdef JSValueRef jsResult
 
-        jsName = createJSStringFromPython(name)
+        jsName = createJSStringFromPython(pyName)
         try:
-            if not JSObjectHasProperty(self.jsCtx, self.jsObject, jsName):
-                raise AttributeError, \
-                    "JavaScript object has no attribute '%s'" % name
-
             jsResult = JSObjectGetProperty(self.jsCtx, self.jsObject,
                                            jsName, &jsException)
             if jsException != NULL:
-                # TODO: Use the exception as an error message.
-                raise AttributeError, name
+                raise jsExceptionToPython(self.jsCtx, jsException)
 
-            if not JSValueIsObjectOfClass(self.jsCtx, jsResult,
+            if JSValueIsUndefined(self.jsCtx, jsResult):
+                # This may be a property with an undefined value, or
+                # no property at all.
+                if JSObjectHasProperty(self.jsCtx, self.jsObject, jsName):
+                    return jsToPython(self.jsCtx, jsResult)
+                else:
+                    # For inexisting properties, we use Python
+                    # behavior.
+                    raise AttributeError, \
+                        "JavaScript object has no property '%s'" % pyName
+            elif not JSValueIsObjectOfClass(self.jsCtx, jsResult,
                                           pyObjectClass) and \
-                    JSObjectIsFunction(self.jsCtx, jsResult):
+                  JSObjectIsFunction(self.jsCtx, jsResult):
                 # This is a native JavaScript function, we mimic
                 # Python's behavior and return it bound to this
                 # object.
@@ -238,18 +243,17 @@ cdef class _JSObject:
         finally:
             JSStringRelease(jsName)
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, pyName, pyValue):
         cdef JSStringRef jsName
         cdef JSValueRef jsException = NULL
 
-        jsName = createJSStringFromPython(name)
+        jsName = createJSStringFromPython(pyName)
         try:
             JSObjectSetProperty(self.jsCtx, self.jsObject, jsName,
-                                pythonToJS(self.jsCtx, value),
+                                pythonToJS(self.jsCtx, pyValue),
                                 kJSPropertyAttributeNone, &jsException)
             if jsException != NULL:
-                # TODO: Use the exception as an error message.
-                raise AttributeError, name
+                raise jsExceptionToPython(self.jsCtx, jsException)
         finally:
             JSStringRelease(jsName)
 
@@ -502,6 +506,10 @@ cdef JSValueRef pyObjGetProperty(JSContextRef jsCtx,
 
     try:
         return pythonToJS(jsCtx, getattr(pyObj, pyPropertyName))
+    except AttributeError:
+        # Use the standard JavaScript attribute behavior when
+        # attributes can't be found.
+        return JSValueMakeUndefined(jsCtx)
     except BaseException, e:
         jsExc[0] = pyExceptionToJS(jsCtx, e)
 

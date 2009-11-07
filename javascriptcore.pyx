@@ -257,6 +257,27 @@ cdef class _JSObject:
         finally:
             JSStringRelease(jsName)
 
+    def __delattr__(self, pyName):
+        cdef JSStringRef jsName
+        cdef JSValueRef jsException = NULL
+
+        jsName = createJSStringFromPython(pyName)
+        try:
+            if not JSObjectHasProperty(self.jsCtx, self.jsObject, jsName):
+                # Use Python behavior for inexisting properties.
+                raise AttributeError, \
+                    "JavaScript object has no property '%s'" % pyName
+
+            if not JSObjectDeleteProperty(self.jsCtx, self.jsObject,
+                                          jsName, &jsException):
+                raise AttributeError, \
+                    "property '%s' of JavaScript object cannot " \
+                    "be deleted" % pyName
+            if jsException != NULL:
+                raise jsExceptionToPython(self.jsCtx, jsException)
+        finally:
+            JSStringRelease(jsName)
+
     def __contains__(self, item):
         pass
 
@@ -542,6 +563,23 @@ cdef bool pyObjSetProperty(JSContextRef jsCtx,
     except BaseException, e:
         jsExc[0] = pyExceptionToJS(jsCtx, e)
 
+cdef bool pyObjDeleteProperty(JSContextRef jsCtx,
+                              JSObjectRef jsObj,
+                              JSStringRef jsPropertyName,
+                              JSValueRef* jsExc):
+    """Invoked to delete properties in a wrapped object."""
+    cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
+    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+
+    try:
+        delattr(pyObj, pyPropertyName)
+    except AttributeError:
+        pass
+    except BaseException, e:
+        jsExc[0] = pyExceptionToJS(jsCtx, e)    
+
+    return True
+
 cdef JSValueRef pyObjCallAsFunction(JSContextRef jsCtx,
                                     JSObjectRef jsObj,
                                     JSObjectRef jsThisObj,
@@ -570,6 +608,7 @@ pyObjectClassDef.className = 'PythonObject'
 pyObjectClassDef.hasProperty = pyObjHasProperty
 pyObjectClassDef.getProperty = pyObjGetProperty
 pyObjectClassDef.setProperty = pyObjSetProperty
+pyObjectClassDef.deleteProperty = pyObjDeleteProperty
 pyObjectClassDef.callAsFunction = pyObjCallAsFunction
 pyObjectClassDef.finalize = finalizeCb
 

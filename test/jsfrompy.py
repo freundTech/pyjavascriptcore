@@ -216,6 +216,17 @@ class AttributeAccessTestCase(TestCaseWithContext):
         self.assertTrue(hasattr(self.obj, 'd'))
         self.assertFalse(hasattr(self.obj, 'abc'))
 
+    def testDel(self):
+        self.assertTrueJS("obj.hasOwnProperty('a')")
+        del self.obj.a
+        self.assertTrueJS("!obj.hasOwnProperty('a')")
+
+    def testDelError(self):
+        def code():
+            del self.obj.abc
+
+        self.assertRaises(AttributeError, code)
+
 
 class FunctionCallTestCase(TestCaseWithContext):
     """Call JavaScript functions from Python."""

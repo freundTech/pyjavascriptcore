@@ -167,14 +167,23 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
 # Python Wrappers for JavaScript objects
 #
 
+# The name of the length array property.
+cdef JSStringRef jsLengthName = JSStringCreateWithUTF8CString("length")
+
+
 cdef class _JSObject:
     """Wrapper class to make JavaScript objects accessible from Python.
 
     Since it is impossible to reliably distinguish between JavaScript
-    arrays and other types of objects, JObjects have the ability of
+    arrays and other types of objects, JSObjects have the ability of
     behaving like Python sequences. Some of the operations depend on
     the presence of a 'length' property, and will fail with a
-    ``TypeError`` if it isn't present."""
+    ``TypeError`` when it isn't present.
+
+    Since Cython extension classes cannot inherit from Python classes,
+    we first define class ``_JSObject`` and then define ``JSObject``
+    as a standard Python class that mixes in ``MutableSequence`` from
+    the ``collections`` module."""
 
     cdef JSContextRef jsCtx
     cdef JSObjectRef jsObject
@@ -278,50 +287,94 @@ cdef class _JSObject:
         finally:
             JSStringRelease(jsName)
 
-    def __contains__(self, item):
-        pass
+
+    #
+    # Sequence-related standard methods
+    #
+
+    cdef int getLength(self) except -1:
+        cdef JSValueRef jsException = NULL
+        cdef JSValueRef jsResult
+        cdef int result
+
+        jsResult = JSObjectGetProperty(self.jsCtx, self.jsObject,
+                                       jsLengthName, &jsException)
+        if jsException != NULL or JSValueIsUndefined(self.jsCtx, jsResult):
+            raise TypeError, "not an array or array-like JavaScript object"
+
+        result = <int>JSValueToNumber(self.jsCtx, jsResult, &jsException)
+        if jsException != NULL:
+            raise TypeError, "not an array or array-like JavaScript object"
+
+        return result
+
+    cdef JSValueRef getItem(self, int pyKey) except NULL:
+        cdef JSValueRef jsException = NULL
+        cdef JSValueRef jsResult
+
+        jsResult = JSObjectGetPropertyAtIndex(self.jsCtx, self.jsObject,
+                                              pyKey, &jsException)
+        if jsException != NULL:
+            raise jsExceptionToPython(self.jsCtx, jsException)
+
+        return jsResult
+
+    def __contains__(self, pyItem):
+        cdef JSValueRef jsItem = pythonToJS(self.jsCtx, pyItem)
+        cdef JSValueRef jsElem
+
+        for i in range(self.getLength()):
+            jsElem = self.getItem(i)
+            if JSValueIsObjectOfClass(self.jsCtx, jsElem, pyObjectClass):
+                # This is a wrapped Python object, compare according
+                # to Python rules.
+                if <object>JSObjectGetPrivate(jsElem) == pyItem:
+                    return True
+            else:
+                # Compare according to JavaScript rules.
+                if JSValueIsStrictEqual(self.jsCtx, jsItem, jsElem):
+                    return True
+        return False
 
     def __len__(self):
-        try:
-            return int(self.length)
-        except AttributeError:
-            raise TypeError, "Not an array or array-like JavaScript object"
+        return self.getLength()
 
     def __iter__(self):
         return _JSObjectIterator(self)
 
-    def __getitem__(self, key):
+    def __getitem__(self, pyKey):
         cdef JSValueRef jsValueRef
         cdef JSValueRef jsException = NULL
 
         jsValueRef = JSObjectGetPropertyAtIndex(self.jsCtx, self.jsObject,
-                                                key, &jsException)
+                                                pyKey, &jsException)
         if jsException != NULL:
             raise jsExceptionToPython(self.jsCtx, jsException)
         return jsToPython(self.jsCtx, jsValueRef)
 
-    def __setitem__(self, key, value):
-        cdef JSValueRef jsValue = pythonToJS(self.jsCtx, value)
+    def __setitem__(self, pyKey, pyValue):
+        cdef JSValueRef jsValue = pythonToJS(self.jsCtx, pyValue)
         cdef JSValueRef jsException = NULL
 
-        JSObjectSetPropertyAtIndex(self.jsCtx, self.jsObject, key, jsValue,
+        JSObjectSetPropertyAtIndex(self.jsCtx, self.jsObject, pyKey, jsValue,
                                    &jsException)
         if jsException != NULL:
             raise jsExceptionToPython(self.jsCtx, jsException)
 
-    def __delitem__(self, key):
+    def __delitem__(self, pyKey):
         pass
 
-    def insert(self, pos, item):
+    def insert(self, pyPos, pyItem):
         pass
 
 
 class JSObject(_JSObject, collections.MutableSequence):
+    """Mix ``_JSObject`` and ``collections.MutableSequence``."""
     __slots__ = ()
 
 
 cdef makeJSObject(JSContextRef jsCtx, JSObjectRef jsObject):
-    """Factory function for '_JSObject' instances."""
+    """Factory function for 'JSObject' instances."""
     cdef _JSObject obj = JSObject()
     obj.setup(jsCtx, jsObject)
     return obj
@@ -341,7 +394,7 @@ cdef class _JSObjectIterator:
         return self
 
     def __next__(self):
-        if self.index < self.pyObj.__len__():
+        if self.index < self.pyObj.getLength():
             value = self.pyObj[self.index]
             self.index += 1
             return value

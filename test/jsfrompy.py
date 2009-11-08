@@ -362,3 +362,41 @@ class ArrayTestCase(TestCaseWithContext):
         self.assertRaises(StopIteration, next1)
         self.assertEqual(next2(), 5)
         self.assertRaises(StopIteration, next2)
+
+    def testContains1(self):
+        self.assertTrue(1 in self.obj)
+        self.assertTrue(3 in self.obj)
+        self.assertTrue(5 in self.obj)
+
+    def testContains2(self):
+        self.assertFalse(0 in self.obj)
+        self.assertFalse('x' in self.obj)
+
+    def testContains3(self):
+        self.assertFalse(None in self.obj)
+
+    def testContains4(self):
+        obj =  self.ctx.evaluateScript("""
+          (['a', 'b', 'c', 'd', 'e'])
+          """)
+        self.assertTrue('a' in obj)
+        self.assertTrue('c' in obj)
+        self.assertTrue('e' in obj)
+        self.assertFalse('f' in obj)
+        self.assertFalse(1 in obj)
+        self.assertFalse(None in obj)
+
+    def testContains5(self):
+        obj =  self.ctx.evaluateScript("""[]""")
+        self.assertFalse('f' in obj)
+        self.assertFalse(1 in obj)
+        self.assertFalse(None in obj)
+
+    def testContains6(self):
+        class A(object):
+            pass
+        a = A()
+        self.assertFalse(a in self.obj)
+        self.obj[2] = a
+        self.assertTrue(a in self.obj)
+

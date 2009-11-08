@@ -316,12 +316,33 @@ class ArrayTestCase(TestCaseWithContext):
         self.assertEqual(self.obj[2], 3)
         self.assertEqual(self.obj[4], 5)
 
-    def xtestIndexing2(self):
-        # TODO: Raise exceptions when JavaScript returns 'undefined'.
-        def get(): return self.obj[6]
-        self.assertRaises(get, Exception)
+    def testIndexing2(self):
+        def get(): return self.obj[5]
+        self.assertRaises(IndexError, get)
 
     def testIndexing3(self):
+        self.assertEqual(self.obj[-5], 1)
+        self.assertEqual(self.obj[-3], 3)
+        self.assertEqual(self.obj[-1], 5)
+
+    def testIndexing4(self):
+        def get(): return self.obj[-6]
+        self.assertRaises(IndexError, get)
+
+    def testIndexing5(self):
+        def get(): return self.obj[3.4]
+        self.assertRaises(TypeError, get)
+        def get(): return self.obj['2']
+        self.assertRaises(TypeError, get)
+
+    def testSlice1(self):
+        self.assertEqual(self.obj[:], [1, 2, 3, 4, 5])
+        self.assertEqual(self.obj[2:], [3, 4, 5])
+        self.assertEqual(self.obj[:2], [1, 2])
+        self.assertEqual(self.obj[2:4], [3, 4])
+        self.assertEqual(self.obj[1:5:2], [2, 4])
+
+    def testModif1(self):
         self.obj[0] = 10
         self.obj[2] = 20
         self.obj[4] = 40

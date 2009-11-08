@@ -342,15 +342,30 @@ cdef class _JSObject:
     def __iter__(self):
         return _JSObjectIterator(self)
 
-    def __getitem__(self, pyKey):
-        cdef JSValueRef jsValueRef
-        cdef JSValueRef jsException = NULL
+    def __getitem__(self, pyIndex):
+        cdef int index
+        cdef int length = self.getLength()
 
-        jsValueRef = JSObjectGetPropertyAtIndex(self.jsCtx, self.jsObject,
-                                                pyKey, &jsException)
-        if jsException != NULL:
-            raise jsExceptionToPython(self.jsCtx, jsException)
-        return jsToPython(self.jsCtx, jsValueRef)
+        if isinstance(pyIndex, int) or isinstance(pyIndex, long):
+            index = pyIndex
+
+            # Handle negative indexes.
+            if index < 0:
+                index += length
+
+            # Exclude out-of-range indexes.
+            if index < 0 or index >= length:
+                raise IndexError, "list index out of range"
+
+            return jsToPython(self.jsCtx, self.getItem(index))
+        elif isinstance(pyIndex, slice):
+            # Don't know how efficient this is, but it looks cool
+            # anyway.
+            return [jsToPython(self.jsCtx, self.getItem(i))
+                    for i in xrange(*pyIndex.indices(length))]
+        else:
+            raise TypeError, "list indices must be integers, not %s" % \
+                pyIndex.__class__.__name__
 
     def __setitem__(self, pyKey, pyValue):
         cdef JSValueRef jsValue = pythonToJS(self.jsCtx, pyValue)

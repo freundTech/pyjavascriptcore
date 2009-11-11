@@ -308,12 +308,12 @@ cdef class _JSObject:
 
         return result
 
-    cdef JSValueRef getItem(self, int pyKey) except NULL:
+    cdef JSValueRef getItem(self, int index) except NULL:
         cdef JSValueRef jsException = NULL
         cdef JSValueRef jsResult
 
         jsResult = JSObjectGetPropertyAtIndex(self.jsCtx, self.jsObject,
-                                              pyKey, &jsException)
+                                              index, &jsException)
         if jsException != NULL:
             raise jsExceptionToPython(self.jsCtx, jsException)
 

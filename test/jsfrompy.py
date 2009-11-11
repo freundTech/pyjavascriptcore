@@ -421,6 +421,52 @@ class ArrayTestCase(TestCaseWithContext):
         def set(): self.obj[::2] = [10, 20]
         self.assertRaises(ValueError, set)
 
+    def testDelete1(self):
+        del self.obj[0]
+        self.assertEqual(list(self.obj), [2, 3, 4, 5])
+
+    def testDelete2(self):
+        del self.obj[2]
+        self.assertEqual(list(self.obj), [1, 2, 4, 5])
+
+    def testDelete3(self):
+        del self.obj[4]
+        self.assertEqual(list(self.obj), [1, 2, 3, 4])
+
+    def testDelete4(self):
+        def dl(): del self.obj[5]
+        self.assertRaises(IndexError, dl)
+        def dl(): del self.obj[-6]
+        self.assertRaises(IndexError, dl)
+
+    def testDelSlice1(self):
+        del self.obj[0:2]
+        self.assertEqual(list(self.obj), [3, 4, 5])
+
+    def testDelSlice2(self):
+        del self.obj[2:4]
+        self.assertEqual(list(self.obj), [1, 2, 5])
+
+    def testDelSlice3(self):
+        del self.obj[3:5]
+        self.assertEqual(list(self.obj), [1, 2, 3])
+
+    def testDelSlice4(self):
+        del self.obj[0:5]
+        self.assertEqual(list(self.obj), [])
+
+    def testDelSliceExt1(self):
+        del self.obj[0:5:2]
+        self.assertEqual(list(self.obj), [2, 4])
+
+    def testDelSliceExt2(self):
+        del self.obj[0:4:2]
+        self.assertEqual(list(self.obj), [2, 4, 5])
+
+    def testDelSliceExt3(self):
+        del self.obj[1:5:2]
+        self.assertEqual(list(self.obj), [1, 3, 5])
+
     def testIterate1(self):
         i = 0
         for elem in self.obj:

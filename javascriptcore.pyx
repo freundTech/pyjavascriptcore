@@ -460,8 +460,58 @@ cdef class _JSObject:
             raise TypeError, "list indices must be integers, not %s" % \
                 pyIndex.__class__.__name__
 
-    def __delitem__(self, pyKey):
-        pass
+    def __delitem__(self, pyIndex):
+        cdef int index
+        cdef int length = self.getLength()
+        cdef int start, end, step
+        cdef int frm, dest, nextDel
+
+        if isinstance(pyIndex, int) or isinstance(pyIndex, long):
+            index = pyIndex
+
+            # Handle negative indexes.
+            if index < 0:
+                index += length
+
+            # Exclude out-of-range indexes.
+            if index < 0 or index >= length:
+                raise IndexError, "list index out of range"
+
+            self.copyBlock(index + 1, length, index)
+            self.setLength(length - 1)
+        elif isinstance(pyIndex, slice):
+            start, end, step = pyIndex.indices(length)
+
+            if step == 1:
+                # Move the elements after the slice to their final
+                # position.
+                self.copyBlock(end, length, start)
+                self.setLength(length - (end - start))
+            else:
+                # Copy the elements to their final positions. Elements
+                # are copied from frm to dest. nextDel marks the
+                # position of the next element that must be deleted
+                # (-1 if no more elements have to be deleted).
+
+                nextDel = start
+                if nextDel >= end:
+                    nextDel = -1
+
+                dest = start
+                for frm in range(start, length):
+                    if frm == nextDel:
+                        nextDel += step
+                        if nextDel >= end:
+                            nextDel = -1
+                    else:
+                        self.setItem(dest, self.getItem(frm))
+                        dest += 1
+
+                # Truncate the list.
+                self.setLength(dest)
+        else:
+            raise TypeError, "list indices must be integers, not %s" % \
+                pyIndex.__class__.__name__        
 
     def insert(self, pyPos, pyItem):
         pass

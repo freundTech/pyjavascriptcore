@@ -513,8 +513,30 @@ cdef class _JSObject:
             raise TypeError, "list indices must be integers, not %s" % \
                 pyIndex.__class__.__name__        
 
-    def insert(self, pyPos, pyItem):
-        pass
+    def insert(self, pyIndex, pyValue):
+        cdef int index
+        cdef int length = self.getLength()
+
+        if not isinstance(pyIndex, int) and not isinstance(pyIndex, long):
+            raise TypeError, "list indices must be integers, not %s" % \
+                pyIndex.__class__.__name__
+
+        index = pyIndex
+
+        # The insert method is special in how indexes are handled:
+
+        # Handle negative indexes.
+        if index < 0:
+            index += length
+
+        # Handle out-of-range indexes.
+        if index < 0:
+            index = 0
+        elif index > length:
+            index = length
+
+        self.copyBlock(index, length, index + 1)
+        self.setItem(index, pythonToJS(self.jsCtx, pyValue))
 
 
 class JSObject(_JSObject, collections.MutableSequence):

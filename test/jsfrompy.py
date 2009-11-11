@@ -537,3 +537,31 @@ class ArrayTestCase(TestCaseWithContext):
         self.obj[2] = a
         self.assertTrue(a in self.obj)
 
+    def testInsert1(self):
+        self.obj.insert(0, 10)
+        self.assertEqual(list(self.obj), [10, 1, 2, 3, 4, 5])
+
+    def testInsert2(self):
+        self.obj.insert(-5, 10)
+        self.assertEqual(list(self.obj), [10, 1, 2, 3, 4, 5])
+
+    def testInsert3(self):
+        self.obj.insert(-8, 10)
+        self.assertEqual(list(self.obj), [10, 1, 2, 3, 4, 5])
+
+    def testInsert4(self):
+        self.obj.insert(2, 10)
+        self.assertEqual(list(self.obj), [1, 2, 10, 3, 4, 5])
+
+    def testInsert5(self):
+        self.obj.insert(-3, 10)
+        self.assertEqual(list(self.obj), [1, 2, 10, 3, 4, 5])
+
+    def testInsert6(self):
+        self.obj.insert(5, 10)
+        self.assertEqual(list(self.obj), [1, 2, 3, 4, 5, 10])
+
+    def testInsert7(self):
+        self.obj.insert(20, 10)
+        self.assertEqual(list(self.obj), [1, 2, 3, 4, 5, 10])
+

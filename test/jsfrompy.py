@@ -565,3 +565,32 @@ class ArrayTestCase(TestCaseWithContext):
         self.obj.insert(20, 10)
         self.assertEqual(list(self.obj), [1, 2, 3, 4, 5, 10])
 
+
+class MutableSequenceTest(TestCaseWithContext):
+    """Test mutable sequence behavior on wrapped JavaScript arrays."""
+
+    def setUp(self):
+        TestCaseWithContext.setUp(self)
+        self.obj = self.ctx.evaluateScript("""
+          ([1, 2, 3, 4, 5])
+          """)
+
+    def testIsInstance(self):
+        import collections
+        self.assertTrue(isinstance(self.obj, collections.MutableSequence))
+
+    def testAppend(self):
+        self.obj.append(30)
+        self.assertEqual(list(self.obj), [1, 2, 3, 4, 5, 30])
+
+    def testExtend(self):
+        self.obj.extend([30, 40])
+        self.assertEqual(list(self.obj), [1, 2, 3, 4, 5, 30, 40])
+
+    def testReverse(self):
+        self.obj.reverse()
+        self.assertEqual(list(self.obj), [5, 4, 3, 2, 1])
+
+    def testCount(self):
+        self.assertEqual(self.obj.count(3), 1)
+        self.assertEqual(self.obj.count(7), 0)

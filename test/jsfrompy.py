@@ -311,6 +311,9 @@ class ArrayTestCase(TestCaseWithContext):
     def testLen1(self):
         self.assertEqual(len(self.obj), 5)
 
+    def testEqual1(self):
+        self.assertEqual(list(self.obj), [1, 2, 3, 4, 5])
+
     def testIndexing1(self):
         self.assertEqual(self.obj[0], 1)
         self.assertEqual(self.obj[2], 3)
@@ -342,14 +345,81 @@ class ArrayTestCase(TestCaseWithContext):
         self.assertEqual(self.obj[2:4], [3, 4])
         self.assertEqual(self.obj[1:5:2], [2, 4])
 
-    def testModif1(self):
+    def testSet1(self):
         self.obj[0] = 10
         self.obj[2] = 20
         self.obj[4] = 40
-        self.assertEqual(self.obj[0], 10)
-        self.assertEqual(self.obj[2], 20)
-        self.assertEqual(self.obj[4], 40)
-        self.assertEqual(len(self.obj), 5)
+        self.assertEqual(list(self.obj), [10, 2, 20, 4, 40])
+
+    def testSet2(self):
+        def set(): self.obj[5] = 16
+        self.assertRaises(IndexError, set)
+
+    def testSetSliceSameLength1(self):
+        self.obj[0:2] = [10, 20]
+        self.assertEqual(list(self.obj), [10, 20, 3, 4, 5])
+
+    def testSetSliceSameLength2(self):
+        self.obj[2:4] = [10, 20]
+        self.assertEqual(list(self.obj), [1, 2, 10, 20, 5])
+
+    def testSetSliceSameLength3(self):
+        self.obj[3:5] = [10, 20]
+        self.assertEqual(list(self.obj), [1, 2, 3, 10, 20])
+
+    def testSetSliceSameLength4(self):
+        self.obj[3:3] = []
+        self.assertEqual(list(self.obj), [1, 2, 3, 4, 5])
+
+    def testSetSliceSameLength5(self):
+        self.obj[0:5] = [10, 20, 30, 40, 50]
+        self.assertEqual(list(self.obj), [10, 20, 30, 40, 50])
+
+    def testSetSliceShorter1(self):
+        self.obj[0:3] = [10]
+        self.assertEqual(list(self.obj), [10, 4, 5])
+
+    def testSetSliceShorter2(self):
+        self.obj[1:4] = [10]
+        self.assertEqual(list(self.obj), [1, 10, 5])
+
+    def testSetSliceShorter3(self):
+        self.obj[2:5] = [10]
+        self.assertEqual(list(self.obj), [1, 2, 10])
+
+    def testSetSliceShorter4(self):
+        self.obj[0:5] = [10]
+        self.assertEqual(list(self.obj), [10])
+
+    def testSetSliceShorter5(self):
+        self.obj[1:4] = []
+        self.assertEqual(list(self.obj), [1, 5])
+
+    def testSetSliceLonger1(self):
+        self.obj[0:3] = [10, 20, 30]
+        self.assertEqual(list(self.obj), [10, 20, 30, 4, 5])
+
+    def testSetSliceLonger2(self):
+        self.obj[1:4] = [10, 20, 30]
+        self.assertEqual(list(self.obj), [1, 10, 20, 30, 5])
+
+    def testSetSliceLonger3(self):
+        self.obj[2:5] = [10, 20, 30]
+        self.assertEqual(list(self.obj), [1, 2, 10, 20, 30])
+
+    def testSetSliceLonger4(self):
+        self.obj[0:5] = [10, 20, 30, 40, 50, 60, 70]
+        self.assertEqual(list(self.obj), [10, 20, 30, 40, 50, 60, 70])
+
+    def testSetSliceExt1(self):
+        self.obj[::2] = [10, 20, 30]
+        self.assertEqual(list(self.obj), [10, 2, 20, 4, 30])
+
+    def testSetSliceExt2(self):
+        def set(): self.obj[::2] = [10, 20, 30, 50]
+        self.assertRaises(ValueError, set)
+        def set(): self.obj[::2] = [10, 20]
+        self.assertRaises(ValueError, set)
 
     def testIterate1(self):
         i = 0

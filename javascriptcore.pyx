@@ -289,7 +289,7 @@ cdef class _JSObject:
 
 
     #
-    # Sequence-related standard methods
+    # Sequence-related methods
     #
 
     cdef int getLength(self) except -1:
@@ -308,6 +308,18 @@ cdef class _JSObject:
 
         return result
 
+    cdef int setLength(self, int length) except -1:
+        cdef JSValueRef jsException = NULL
+        cdef JSValueRef jsLength = JSValueMakeNumber(self.jsCtx, length)
+
+        JSObjectSetProperty(self.jsCtx, self.jsObject, jsLengthName,
+                            jsLength, kJSPropertyAttributeNone, &jsException)
+        if jsException != NULL:
+            raise TypeError, "not a mutable array or array-like " \
+                "JavaScript object"
+
+        return 0
+
     cdef JSValueRef getItem(self, int index) except NULL:
         cdef JSValueRef jsException = NULL
         cdef JSValueRef jsResult
@@ -318,6 +330,33 @@ cdef class _JSObject:
             raise jsExceptionToPython(self.jsCtx, jsException)
 
         return jsResult
+
+    cdef int setItem(self, int index, JSValueRef jsValue) except -1:
+        cdef JSValueRef jsException = NULL
+
+        JSObjectSetPropertyAtIndex(self.jsCtx, self.jsObject, index, jsValue,
+                                   &jsException)
+        if jsException != NULL:
+            raise jsExceptionToPython(self.jsCtx, jsException)
+
+        return 0
+
+    cdef int copyBlock(self, int start, int end, int dest) except -1:
+        """Copy the elements of ``[start, end]`` to position ``dest``.
+
+        Both ``start`` and ``end`` must be non-negative and ``start
+        must be lower than ``end``."""
+        cdef int count = end - start
+        cdef int i
+
+        if start < dest:
+            for i in range(count - 1, -1, -1):
+                self.setItem(dest + i, self.getItem(start + i))
+        elif start > dest:
+            for i in range(count):
+                self.setItem(dest + i, self.getItem(start + i))
+
+        return 0
 
     def __contains__(self, pyItem):
         cdef JSValueRef jsItem = pythonToJS(self.jsCtx, pyItem)
@@ -345,6 +384,7 @@ cdef class _JSObject:
     def __getitem__(self, pyIndex):
         cdef int index
         cdef int length = self.getLength()
+        cdef int i
 
         if isinstance(pyIndex, int) or isinstance(pyIndex, long):
             index = pyIndex
@@ -367,14 +407,58 @@ cdef class _JSObject:
             raise TypeError, "list indices must be integers, not %s" % \
                 pyIndex.__class__.__name__
 
-    def __setitem__(self, pyKey, pyValue):
-        cdef JSValueRef jsValue = pythonToJS(self.jsCtx, pyValue)
-        cdef JSValueRef jsException = NULL
+    def __setitem__(self, pyIndex, pyValue):
+        cdef int index
+        cdef int length = self.getLength()
+        cdef int start, end, step
+        cdef int valueLength
+        cdef int sliceSize
+        cdef int i
 
-        JSObjectSetPropertyAtIndex(self.jsCtx, self.jsObject, pyKey, jsValue,
-                                   &jsException)
-        if jsException != NULL:
-            raise jsExceptionToPython(self.jsCtx, jsException)
+        if isinstance(pyIndex, int) or isinstance(pyIndex, long):
+            index = pyIndex
+
+            # Handle negative indexes.
+            if index < 0:
+                index += length
+
+            # Exclude out-of-range indexes.
+            if index < 0 or index >= length:
+                raise IndexError, "list index out of range"
+
+            self.setItem(index, pythonToJS(self.jsCtx, pyValue))
+        elif isinstance(pyIndex, slice):
+            start, end, step = pyIndex.indices(length)
+            pyValueList = list(pyValue)
+            valueLength = len(pyValueList)
+
+            if step == 1:
+                # Move the elements after the slice to their final
+                # position.
+                self.copyBlock(end, length, start + valueLength)
+
+                if end - start > valueLength:
+                    # Truncate the list to its new length.
+                    self.setLength(length - (end - start) + valueLength)
+            else:
+                # Calculate the size of the extended slice.
+                sliceSize = (end - start) / step
+                if (end - start) % step > 0:
+                    sliceSize += 1
+
+                if sliceSize != valueLength:
+                    raise ValueError, "attempt to assign sequence of size" \
+                        " %d to extended slice of size %d" % \
+                        (valueLength, sliceSize)
+
+            # Copy the elements to their destination.
+            i = start
+            for pyElem in pyValueList:
+                self.setItem(i, pythonToJS(self.jsCtx, pyElem))
+                i += step
+        else:
+            raise TypeError, "list indices must be integers, not %s" % \
+                pyIndex.__class__.__name__
 
     def __delitem__(self, pyKey):
         pass

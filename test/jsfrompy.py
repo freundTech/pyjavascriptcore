@@ -83,7 +83,7 @@ class EvaluateScriptTestCase(TestCaseWithContext):
         self.assertAlmostEqual(self.ctx.evaluateScript('3.34'), 3.34)
 
     def testEvaluateObject1(self):
-        # Object initializers are not expressions, the parenthesis
+        # Object initializers are not expressions, the parentheses
         # create an expression, though.
         obj = self.ctx.evaluateScript("""({a: 1, b: 'x'})""")
         self.assertEqual(obj.a, 1)

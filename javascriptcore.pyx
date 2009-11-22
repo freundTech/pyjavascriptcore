@@ -741,6 +741,16 @@ cdef JSValueRef pyExceptionToJS(JSContextRef jsCtx, object exc):
 
 # PythonObject operations:
 
+cdef void pyObjInitialize(JSContextRef ctx,
+                          JSObjectRef jsObj):
+    """Invoked to initialize the object."""
+    cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
+
+    # Keep a reference to the wrapped Python object during the
+    # lifetime of the JavaScript wrapper. This reference is released
+    # in the finalize method.
+    Py_INCREF(pyObj)
+
 cdef bool pyObjHasProperty(JSContextRef jsCtx,
                            JSObjectRef jsObj,
                            JSStringRef jsPropertyName):
@@ -823,12 +833,14 @@ cdef JSValueRef pyObjCallAsFunction(JSContextRef jsCtx,
 
 cdef void finalizeCb(JSObjectRef jsObj):
     """Invoked when a wrapper object is garbage-collected."""
-    cdef object wrapped = <object>JSObjectGetPrivate(jsObj)
-    Py_DECREF(wrapped)
+    cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
 
-# Initialize the class definition structure for the wrapper objects.
+    Py_DECREF(pyObj)
+
+# Class definition structure for the wrapper objects.
 cdef JSClassDefinition pyObjectClassDef = kJSClassDefinitionEmpty
 pyObjectClassDef.className = 'PythonObject'
+pyObjectClassDef.initialize = pyObjInitialize
 pyObjectClassDef.hasProperty = pyObjHasProperty
 pyObjectClassDef.getProperty = pyObjGetProperty
 pyObjectClassDef.setProperty = pyObjSetProperty
@@ -839,7 +851,6 @@ pyObjectClassDef.finalize = finalizeCb
 # The wrapper object class.
 cdef JSClassRef pyObjectClass = JSClassCreate(&pyObjectClassDef)
 
-cdef JSObjectRef makePyObject(JSContextRef jsCtx, object jsObj):
+cdef JSObjectRef makePyObject(JSContextRef jsCtx, object pyObj):
     """Wrap a Python object into a JavaScript object."""
-    Py_INCREF(jsObj)
-    return JSObjectMake(jsCtx, pyObjectClass, <void *>jsObj)
+    return JSObjectMake(jsCtx, pyObjectClass, <void *>pyObj)

@@ -41,3 +41,9 @@ class TestCaseWithContext(unittest.TestCase):
 
     def assertAlmostEqualJS(self, jsExpr, value):
         self.assertAlmostEqual(self.ctx.evaluateScript(jsExpr), value)
+
+    def assertRaisesJS(self, jsExpr):
+        def evalExpr():
+            self.ctx.evaluateScript(jsExpr)
+
+        self.assertRaises(jscore.JSException, evalExpr)

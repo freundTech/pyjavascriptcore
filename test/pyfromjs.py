@@ -21,6 +21,7 @@
 import unittest
 
 import javascriptcore as jscore
+from javascriptcore import asSeq
 
 from base import TestCaseWithContext
 
@@ -147,7 +148,7 @@ class ListAccessTestCase(TestCaseWithContext):
         self.ctx.evaluateScript(expr)
 
     def tearDown(self):
-        if self.objPython != list(self.ctx.globalObject.objJS):
+        if self.objPython != list(asSeq(self.ctx.globalObject.objJS)):
             self.fail("Python object %s differs from JavaScript object %s" % \
                           (repr(self.objPython),
                            repr(list(self.ctx.globalObject.objJS))))

@@ -155,7 +155,7 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
         return JSValueMakeNumber(jsCtx, pyValue)
     elif isinstance(pyValue, types.StringTypes):
         return JSValueMakeString(jsCtx, createJSStringFromPython(pyValue))
-    elif isinstance(pyValue, _JSObject):
+    elif isinstance(pyValue, _JSBaseObject):
         # This is a wrapped JavaScript object, just unwrap it.
         return (<_JSObject>pyValue).jsObject
     else:
@@ -171,19 +171,11 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
 cdef JSStringRef jsLengthName = JSStringCreateWithUTF8CString("length")
 
 
-cdef class _JSObject:
-    """Wrapper class to make JavaScript objects accessible from Python.
+cdef class _JSBaseObject:
+    """Base class for all Python wrappers for JavaScript objects.
 
-    Since it is impossible to reliably distinguish between JavaScript
-    arrays and other types of objects, JSObjects have the ability of
-    behaving like Python sequences. Some of the operations depend on
-    the presence of a 'length' property, and will fail with a
-    ``TypeError`` when it isn't present.
-
-    Since Cython extension classes cannot inherit from Python classes,
-    we first define class ``_JSObject`` and then define ``JSObject``
-    as a standard Python class that mixes in ``MutableSequence`` from
-    the ``collections`` module."""
+    This class only manages object allocation and deallocation.
+    """
 
     cdef JSContextRef jsCtx
     cdef JSObjectRef jsObject
@@ -206,87 +198,13 @@ cdef class _JSObject:
         JSValueUnprotect(self.jsCtx, self.jsObject)
         JSGlobalContextRelease(self.jsCtx)
 
-    def getPropertyNames(self):
-        cdef JSPropertyNameArrayRef nameArray = \
-            JSObjectCopyPropertyNames(self.jsCtx, self.jsObject)
 
-        names = []
-        for i in range(JSPropertyNameArrayGetCount(nameArray)):
-            names.append(pyStringFromJS(
-                    JSPropertyNameArrayGetNameAtIndex(nameArray, i)))
-        JSPropertyNameArrayRelease(nameArray)
-        return names
+cdef class _JSSequence(_JSBaseObject):
+    """A Python sequence view on a JavaScript object.
 
-    def __getattr__(self, pyName):
-        cdef JSStringRef jsName
-        cdef JSValueRef jsException = NULL
-        cdef JSValueRef jsResult
-
-        jsName = createJSStringFromPython(pyName)
-        try:
-            jsResult = JSObjectGetProperty(self.jsCtx, self.jsObject,
-                                           jsName, &jsException)
-            if jsException != NULL:
-                raise jsExceptionToPython(self.jsCtx, jsException)
-
-            if JSValueIsUndefined(self.jsCtx, jsResult):
-                # This may be a property with an undefined value, or
-                # no property at all.
-                if JSObjectHasProperty(self.jsCtx, self.jsObject, jsName):
-                    return jsToPython(self.jsCtx, jsResult)
-                else:
-                    # For inexisting properties, we use Python
-                    # behavior.
-                    raise AttributeError, \
-                        "JavaScript object has no property '%s'" % pyName
-            elif not JSValueIsObjectOfClass(self.jsCtx, jsResult,
-                                          pyObjectClass) and \
-                  JSObjectIsFunction(self.jsCtx, jsResult):
-                # This is a native JavaScript function, we mimic
-                # Python's behavior and return it bound to this
-                # object.
-                return makeJSBoundMethod(self.jsCtx, jsResult,
-                                         self.jsObject)
-            else:
-                return jsToPython(self.jsCtx, jsResult)
-        finally:
-            JSStringRelease(jsName)
-
-    def __setattr__(self, pyName, pyValue):
-        cdef JSStringRef jsName
-        cdef JSValueRef jsException = NULL
-
-        jsName = createJSStringFromPython(pyName)
-        try:
-            JSObjectSetProperty(self.jsCtx, self.jsObject, jsName,
-                                pythonToJS(self.jsCtx, pyValue),
-                                kJSPropertyAttributeNone, &jsException)
-            if jsException != NULL:
-                raise jsExceptionToPython(self.jsCtx, jsException)
-        finally:
-            JSStringRelease(jsName)
-
-    def __delattr__(self, pyName):
-        cdef JSStringRef jsName
-        cdef JSValueRef jsException = NULL
-
-        jsName = createJSStringFromPython(pyName)
-        try:
-            if not JSObjectHasProperty(self.jsCtx, self.jsObject, jsName):
-                # Use Python behavior for inexisting properties.
-                raise AttributeError, \
-                    "JavaScript object has no property '%s'" % pyName
-
-            if not JSObjectDeleteProperty(self.jsCtx, self.jsObject,
-                                          jsName, &jsException):
-                raise AttributeError, \
-                    "property '%s' of JavaScript object cannot " \
-                    "be deleted" % pyName
-            if jsException != NULL:
-                raise jsExceptionToPython(self.jsCtx, jsException)
-        finally:
-            JSStringRelease(jsName)
-
+    See the ``asSeq`` function in this module and the
+    ``_JSObject.__asSeq__`` method for more details.
+    """
 
     #
     # Sequence-related methods
@@ -379,7 +297,7 @@ cdef class _JSObject:
         return self.getLength()
 
     def __iter__(self):
-        return _JSObjectIterator(self)
+        return _JSSeqIterator(self)
 
     def __getitem__(self, pyIndex):
         cdef int index
@@ -539,34 +457,27 @@ cdef class _JSObject:
         self.setItem(index, pythonToJS(self.jsCtx, pyValue))
 
 
-class JSObject(_JSObject, collections.MutableSequence):
-    """Mix ``_JSObject`` and ``collections.MutableSequence``."""
+class JSSequence(_JSSequence, collections.MutableSequence):
+    """Mix ``_JSSequence`` and ``collections.MutableSequence``."""
     __slots__ = ()
 
 
-cdef makeJSObject(JSContextRef jsCtx, JSObjectRef jsObject):
-    """Factory function for 'JSObject' instances."""
-    cdef _JSObject obj = JSObject()
-    obj.setup(jsCtx, jsObject)
-    return obj
-
-
-cdef class _JSObjectIterator:
+cdef class _JSSeqIterator:
     """Iterator class for JavaScript array-like objects."""
 
-    cdef _JSObject pyObj
+    cdef _JSSequence pySeq
     cdef int index
 
-    def __init__(self, pyObj):
-        self.pyObj = pyObj
+    def __init__(self, pySeq):
+        self.pySeq = pySeq
         self.index = 0
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        if self.index < self.pyObj.getLength():
-            value = self.pyObj[self.index]
+        if self.index < self.pySeq.getLength():
+            value = self.pySeq[self.index]
             self.index += 1
             return value
         else:
@@ -576,6 +487,142 @@ cdef class _JSObjectIterator:
         """Wrap the ``__next__`` method for backwards compatibility.
         """
         return self.__next__()
+
+
+cdef class _JSObject(_JSBaseObject):
+    """Wrapper class to make JavaScript objects accessible from Python.
+
+    Since Cython extension classes cannot inherit from Python classes,
+    we first define class ``_JSObject`` and then define ``JSObject``
+    as a standard Python class that mixes in ``MutableSequence`` from
+    the ``collections`` module."""
+
+    # Sequence view of this object.
+    cdef _JSSequence seqView
+
+    def __init__(self):
+        _JSBaseObject.__init__(self)
+        self.seqView = None
+
+    def getPropertyNames(self):
+        cdef JSPropertyNameArrayRef nameArray = \
+            JSObjectCopyPropertyNames(self.jsCtx, self.jsObject)
+
+        names = []
+        for i in range(JSPropertyNameArrayGetCount(nameArray)):
+            names.append(pyStringFromJS(
+                    JSPropertyNameArrayGetNameAtIndex(nameArray, i)))
+        JSPropertyNameArrayRelease(nameArray)
+        return names
+
+    def __getattr__(self, pyName):
+        cdef JSStringRef jsName
+        cdef JSValueRef jsException = NULL
+        cdef JSValueRef jsResult
+
+        jsName = createJSStringFromPython(pyName)
+        try:
+            jsResult = JSObjectGetProperty(self.jsCtx, self.jsObject,
+                                           jsName, &jsException)
+            if jsException != NULL:
+                raise jsExceptionToPython(self.jsCtx, jsException)
+
+            if JSValueIsUndefined(self.jsCtx, jsResult):
+                # This may be a property with an undefined value, or
+                # no property at all.
+                if JSObjectHasProperty(self.jsCtx, self.jsObject, jsName):
+                    return jsToPython(self.jsCtx, jsResult)
+                else:
+                    # For inexisting properties, we use Python
+                    # behavior.
+                    raise AttributeError, \
+                        "JavaScript object has no property '%s'" % pyName
+            elif not JSValueIsObjectOfClass(self.jsCtx, jsResult,
+                                          pyObjectClass) and \
+                  JSObjectIsFunction(self.jsCtx, jsResult):
+                # This is a native JavaScript function, we mimic
+                # Python's behavior and return it bound to this
+                # object.
+                return makeJSBoundMethod(self.jsCtx, jsResult,
+                                         self.jsObject)
+            else:
+                return jsToPython(self.jsCtx, jsResult)
+        finally:
+            JSStringRelease(jsName)
+
+    def __setattr__(self, pyName, pyValue):
+        cdef JSStringRef jsName
+        cdef JSValueRef jsException = NULL
+
+        jsName = createJSStringFromPython(pyName)
+        try:
+            JSObjectSetProperty(self.jsCtx, self.jsObject, jsName,
+                                pythonToJS(self.jsCtx, pyValue),
+                                kJSPropertyAttributeNone, &jsException)
+            if jsException != NULL:
+                raise jsExceptionToPython(self.jsCtx, jsException)
+        finally:
+            JSStringRelease(jsName)
+
+    def __delattr__(self, pyName):
+        cdef JSStringRef jsName
+        cdef JSValueRef jsException = NULL
+
+        jsName = createJSStringFromPython(pyName)
+        try:
+            if not JSObjectHasProperty(self.jsCtx, self.jsObject, jsName):
+                # Use Python behavior for inexisting properties.
+                raise AttributeError, \
+                    "JavaScript object has no property '%s'" % pyName
+
+            if not JSObjectDeleteProperty(self.jsCtx, self.jsObject,
+                                          jsName, &jsException):
+                raise AttributeError, \
+                    "property '%s' of JavaScript object cannot " \
+                    "be deleted" % pyName
+            if jsException != NULL:
+                raise jsExceptionToPython(self.jsCtx, jsException)
+        finally:
+            JSStringRelease(jsName)
+
+    def __asSeq__(self):
+        """Return the sequence view of this object.
+
+        Since it is impossible to reliably distinguish between
+        JavaScript arrays and array-like objects and other types of
+        objects, we cannot decide automatically when a Python wrapper
+        should behave as a sequence.  This method retrieves a view of
+        the current object (a proxy object) that implements the
+        mutable sequence protocol. By operating on 
+
+        Some of the operations depend in the view depend on the
+        presence of a 'length' property in the original object, and
+        will fail with a ``TypeError`` when it isn't present.
+
+        This method should normally be called through the ``asSeq``
+        function in this module.
+        """
+        if self.seqView is None:
+            self.seqView = JSSequence()
+            self.seqView.setup(self.jsCtx, self.jsObject)
+        return self.seqView
+
+
+class JSObject(_JSObject):
+    """Mix ``_JSObject`` and ``collections.MutableMapping``."""
+    __slots__ = ()
+
+
+def asSeq(pyObject):
+    """Return the sequence view of ``pyObject``."""
+    return pyObject.__asSeq__()
+
+
+cdef makeJSObject(JSContextRef jsCtx, JSObjectRef jsObject):
+    """Factory function for 'JSObject' instances."""
+    cdef _JSObject obj = JSObject()
+    obj.setup(jsCtx, jsObject)
+    return obj
 
 
 cdef class JSFunction(_JSObject):

@@ -21,6 +21,7 @@
 import unittest
 
 import javascriptcore as jscore
+from javascriptcore import asSeq
 
 from base import TestCaseWithContext
 
@@ -299,14 +300,34 @@ class MethodCallTestCase(TestCaseWithContext):
         self.assertRaises(jscore.JSException, self.obj.k)
 
 
-class ArrayTestCase(TestCaseWithContext):
-    """Work with JavaScript array-like objects from Python."""
+class AsSeqTestCase(TestCaseWithContext):
+    """Basic test of the asSeq operation."""
 
     def setUp(self):
         TestCaseWithContext.setUp(self)
         self.obj = self.ctx.evaluateScript("""
           ([1, 2, 3, 4, 5])
           """)
+
+    def testAsSeq1(self):
+        s1 = asSeq(self.obj)
+        s2 = asSeq(self.obj)
+        self.assertTrue(s1 is s2)
+
+    def testAsSeq2(self):
+        self.assertEqual(self.obj.length, 5)
+        asSeq(self.obj).append(6)
+        self.assertEqual(self.obj.length, 6)
+
+
+class ArrayTestCase(TestCaseWithContext):
+    """Work with JavaScript array-like objects from Python."""
+
+    def setUp(self):
+        TestCaseWithContext.setUp(self)
+        self.obj = asSeq(self.ctx.evaluateScript("""
+          ([1, 2, 3, 4, 5])
+          """))
 
     def testLen1(self):
         self.assertEqual(len(self.obj), 5)
@@ -513,9 +534,9 @@ class ArrayTestCase(TestCaseWithContext):
         self.assertFalse(None in self.obj)
 
     def testContains4(self):
-        obj =  self.ctx.evaluateScript("""
+        obj =  asSeq(self.ctx.evaluateScript("""
           (['a', 'b', 'c', 'd', 'e'])
-          """)
+          """))
         self.assertTrue('a' in obj)
         self.assertTrue('c' in obj)
         self.assertTrue('e' in obj)
@@ -524,7 +545,7 @@ class ArrayTestCase(TestCaseWithContext):
         self.assertFalse(None in obj)
 
     def testContains5(self):
-        obj =  self.ctx.evaluateScript("""[]""")
+        obj =  asSeq(self.ctx.evaluateScript("""[]"""))
         self.assertFalse('f' in obj)
         self.assertFalse(1 in obj)
         self.assertFalse(None in obj)
@@ -571,9 +592,9 @@ class MutableSequenceTest(TestCaseWithContext):
 
     def setUp(self):
         TestCaseWithContext.setUp(self)
-        self.obj = self.ctx.evaluateScript("""
+        self.obj = asSeq(self.ctx.evaluateScript("""
           ([1, 2, 3, 4, 5])
-          """)
+          """))
 
     def testIsInstance(self):
         import collections

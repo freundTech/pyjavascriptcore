@@ -71,11 +71,15 @@ cdef extern from "JavaScriptCore/JSObjectRef.h":
         JSContextRef ctx, JSObjectRef object, JSType type,
         JSValueRef* exception)
 
+    # If this ever changes, JSStaticFunctionNC below must be changed
+    # as well.
     ctypedef struct JSStaticFunction:
         char* name
         JSObjectCallAsFunctionCallback callAsFunction
         JSPropertyAttributes attributes
 
+    # If this ever changes, JSStaticValueNC below must be changed
+    # as well.
     ctypedef struct JSStaticValue:
         char* name
         JSObjectGetPropertyCallback getProperty
@@ -176,3 +180,21 @@ cdef extern from "JavaScriptCore/JSObjectRef.h":
     # Variables
 
     JSClassDefinition kJSClassDefinitionEmpty
+
+
+# No const (NC) declarations. They are necessary because Cython lacks
+# array and struct initializers as well as support for the const
+# keyword. This makes it impossible to initialize certain structure
+# and union fields.
+
+ctypedef struct JSStaticFunctionNC:
+    char* name
+    JSObjectCallAsFunctionCallback callAsFunction
+    JSPropertyAttributes attributes
+
+ctypedef struct JSStaticValueNC:
+    char* name
+    JSObjectGetPropertyCallback getProperty
+    JSObjectSetPropertyCallback setProperty
+    JSPropertyAttributes attributes
+

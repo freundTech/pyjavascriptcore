@@ -123,6 +123,80 @@ class AttributeAccessTestCase(TestCaseWithContext):
         self.assertFalse(hasattr(self.obj, 'abc'))
 
 
+class ListAccessTestCase(TestCaseWithContext):
+    """Access Python list-style objects from JavaScript.
+
+    Tests compare the effect of applying the same expression to a
+    native JavaScript array and a wrapped Python list.
+    """
+
+    def setUp(self):
+        TestCaseWithContext.setUp(self)
+        self.objPython = [11, 22, 33, 44, 55]
+        self.ctx.globalObject.objPython = self.objPython
+        self.ctx.evaluateScript('objJS = [11, 22, 33, 44, 55]')
+
+        # For the benefit of read-only test cases, the initial value
+        # of obj is the Python object.
+        self.ctx.globalObject.obj = self.objPython
+
+    def evalJS(self, expr):
+        self.ctx.evaluateScript('obj = objPython')
+        self.ctx.evaluateScript(expr)
+        self.ctx.evaluateScript('obj = objJS')
+        self.ctx.evaluateScript(expr)
+
+    def tearDown(self):
+        if self.objPython != list(self.ctx.globalObject.objJS):
+            self.fail("Python object %s differs from JavaScript object %s" % \
+                          (repr(self.objPython),
+                           repr(list(self.ctx.globalObject.objJS))))
+
+        TestCaseWithContext.tearDown(self)
+
+    def testAccess1(self):
+        self.assertEqualJS('obj[1]', 22)
+        self.assertEqualJS('obj[1.0]', 22)
+
+    def testAccess2(self):
+        self.assertEqualJS('obj[0]', 11)
+        self.assertEqualJS('obj[4]', 55)
+
+    def testAccess3(self):
+        self.assertTrueJS('obj[-1] === undefined')
+        self.assertTrueJS('obj[5] === undefined')
+
+    def testSet(self):
+        self.evalJS('obj[2] = 333')
+
+    def testLength(self):
+        self.assertTrueJS('obj.length === 5')
+
+    def testTruncate(self):
+        self.evalJS('obj.length = 3')
+
+    def testExtend1(self):
+        self.evalJS('obj[5] = 66')
+
+    def testExtend2(self):
+        self.evalJS('obj[10] = 66')
+
+    def testExtend3(self):
+        self.evalJS('obj.length = 10')
+
+    def testDel1(self):
+        self.evalJS('delete obj[3]')
+
+    def testDel2(self):
+        self.evalJS('delete obj[0]')
+
+    def testDel3(self):
+        self.evalJS('delete obj[4]')
+
+    def testDel4(self):
+        self.evalJS('delete obj[8]')
+
+
 class FunctionCallTestCase(TestCaseWithContext):
     """Call Python functions from JavaScript."""
 

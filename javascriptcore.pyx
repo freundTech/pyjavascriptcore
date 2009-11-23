@@ -723,6 +723,8 @@ cdef class JSContext:
 # JavaScript Wrappers for Python Objects
 #
 
+# Helper functions:
+
 cdef JSValueRef pyExceptionToJS(JSContextRef jsCtx, object exc):
     """Make a JavaScript exception object from a Python exception
     object."""
@@ -739,11 +741,10 @@ cdef JSValueRef pyExceptionToJS(JSContextRef jsCtx, object exc):
     return JSObjectMakeError(jsCtx, 1, &jsMsg, NULL)
 
 
-# PythonObject operations:
+# PythonObject: Generic JavaScript wrapper for Python objects.
 
 cdef void pyObjInitialize(JSContextRef ctx,
                           JSObjectRef jsObj):
-    """Invoked to initialize the object."""
     cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
 
     # Keep a reference to the wrapped Python object during the
@@ -751,24 +752,10 @@ cdef void pyObjInitialize(JSContextRef ctx,
     # in the finalize method.
     Py_INCREF(pyObj)
 
-cdef bool pyObjHasProperty(JSContextRef jsCtx,
-                           JSObjectRef jsObj,
-                           JSStringRef jsPropertyName):
-    """Invoked to determine if an an object has a property with the
-    given name."""
-    cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
-    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
-
-    try:
-        return hasattr(pyObj, pyPropertyName)
-    except BaseException:
-        return False
-
 cdef JSValueRef pyObjGetProperty(JSContextRef jsCtx,
                                  JSObjectRef jsObj,
                                  JSStringRef jsPropertyName,
                                  JSValueRef* jsExc) with gil:
-    """Invoked to get properties in a wrapped object."""
     cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
     cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
 
@@ -777,7 +764,7 @@ cdef JSValueRef pyObjGetProperty(JSContextRef jsCtx,
     except AttributeError:
         # Use the standard JavaScript attribute behavior when
         # attributes can't be found.
-        return JSValueMakeUndefined(jsCtx)
+        return NULL
     except BaseException, e:
         jsExc[0] = pyExceptionToJS(jsCtx, e)
 
@@ -786,7 +773,6 @@ cdef bool pyObjSetProperty(JSContextRef jsCtx,
                            JSStringRef jsPropertyName,
                            JSValueRef jsValue,
                            JSValueRef* jsExc) with gil:
-    """Invoked to set properties in a wrapped object."""
     cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
     cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
     cdef object pyValue = jsToPython(jsCtx, jsValue)
@@ -801,18 +787,18 @@ cdef bool pyObjDeleteProperty(JSContextRef jsCtx,
                               JSObjectRef jsObj,
                               JSStringRef jsPropertyName,
                               JSValueRef* jsExc):
-    """Invoked to delete properties in a wrapped object."""
     cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
     cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
 
     try:
         delattr(pyObj, pyPropertyName)
+        return True
     except AttributeError:
-        pass
+        # Use the standard JavaScript attribute behavior when
+        # attributes can't be found.
+        return False
     except BaseException, e:
         jsExc[0] = pyExceptionToJS(jsCtx, e)    
-
-    return True
 
 cdef JSValueRef pyObjCallAsFunction(JSContextRef jsCtx,
                                     JSObjectRef jsObj,
@@ -832,25 +818,167 @@ cdef JSValueRef pyObjCallAsFunction(JSContextRef jsCtx,
         jsExc[0] = pyExceptionToJS(jsCtx, e)
 
 cdef void finalizeCb(JSObjectRef jsObj):
-    """Invoked when a wrapper object is garbage-collected."""
     cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
 
     Py_DECREF(pyObj)
 
-# Class definition structure for the wrapper objects.
+# Class definition structure for PythonObject.
 cdef JSClassDefinition pyObjectClassDef = kJSClassDefinitionEmpty
 pyObjectClassDef.className = 'PythonObject'
 pyObjectClassDef.initialize = pyObjInitialize
-pyObjectClassDef.hasProperty = pyObjHasProperty
 pyObjectClassDef.getProperty = pyObjGetProperty
 pyObjectClassDef.setProperty = pyObjSetProperty
 pyObjectClassDef.deleteProperty = pyObjDeleteProperty
 pyObjectClassDef.callAsFunction = pyObjCallAsFunction
 pyObjectClassDef.finalize = finalizeCb
 
-# The wrapper object class.
+# PythonObject class.
 cdef JSClassRef pyObjectClass = JSClassCreate(&pyObjectClassDef)
 
+
+# PythonSequence: Specialized JavaScript wrapper for Python objects
+# implementing the sequence protocol.
+
+cdef object makePyIndex(pyPropertyName):
+    """Convert a JavaScript property name into a positive Python
+    integer index."""
+    cdef object pyIndex
+
+    pyIndex = int(pyPropertyName)
+    if pyIndex < 0:
+        raise ValueError
+
+    return pyIndex
+
+cdef bool pySeqHasProperty(JSContextRef jsCtx,
+                           JSObjectRef jsSeq,
+                           JSStringRef jsPropertyName):
+    cdef object pySeq = <object>JSObjectGetPrivate(jsSeq)
+    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+
+    try:
+        return 0 <= makePyIndex(pyPropertyName) < len(pySeq)
+    except:
+        return False
+
+cdef JSValueRef pySeqGetProperty(JSContextRef jsCtx,
+                                 JSObjectRef jsSeq,
+                                 JSStringRef jsPropertyName,
+                                 JSValueRef* jsExc) with gil:
+    cdef object pySeq = <object>JSObjectGetPrivate(jsSeq)
+    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+
+    try:
+        return pythonToJS(jsCtx, pySeq[makePyIndex(pyPropertyName)])
+    except:
+        return NULL
+
+cdef bool pySeqSetProperty(JSContextRef jsCtx,
+                           JSObjectRef jsSeq,
+                           JSStringRef jsPropertyName,
+                           JSValueRef jsValue,
+                           JSValueRef* jsExc) with gil:
+    cdef object pySeq = <object>JSObjectGetPrivate(jsSeq)
+    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+    cdef object pyValue = jsToPython(jsCtx, jsValue)
+    cdef object pyIndex
+
+    try:
+        pyIndex = makePyIndex(pyPropertyName)
+
+        # Simulate JavaScript behavior when the positions beyond the
+        # length are assigned to.
+        if pyIndex >= len(pySeq):
+            pySeq.extend([None] * (1 + pyIndex - len(pySeq)))
+
+        pySeq[pyIndex] = pyValue
+        return True
+    except:
+        return False
+
+cdef bool pySeqDeleteProperty(JSContextRef jsCtx,
+                              JSObjectRef jsSeq,
+                              JSStringRef jsPropertyName,
+                              JSValueRef* jsExc):
+    cdef object pySeq = <object>JSObjectGetPrivate(jsSeq)
+    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+
+    try:
+        # Delete behaves differently in JavaScript.
+        pySeq[makePyIndex(pyPropertyName)] = None
+        return True
+    except:
+        return False
+
+# Static properties.
+
+cdef JSStaticValueNC pySeqStaticProps[2]
+
+cdef JSValueRef pySeqGetLength(JSContextRef jsCtx,
+                               JSObjectRef jsSeq,
+                               JSStringRef jsPropertyName,
+                               JSValueRef* jsExc) with gil:
+    cdef object pySeq = <object>JSObjectGetPrivate(jsSeq)
+
+    try:
+        return pythonToJS(jsCtx, len(pySeq))
+    except BaseException, e:
+        jsExc[0] = pyExceptionToJS(jsCtx, e)
+
+cdef bool pySeqSetLength(JSContextRef jsCtx,
+                         JSObjectRef jsSeq,
+                         JSStringRef jsPropertyName,
+                         JSValueRef jsValue,
+                         JSValueRef* jsExc) with gil:
+    cdef object pySeq = <object>JSObjectGetPrivate(jsSeq)
+    cdef object pyLength
+
+    try:
+        pyLength = int(jsToPython(jsCtx, jsValue))
+        if pyLength < 0:
+            raise ValueError, 'Invalid length %d' % pyLength
+
+        if pyLength < len(pySeq):
+            pySeq[pyLength:] = ()
+        elif pyLength > len(pySeq):
+            pySeq.extend([None] * (pyLength - len(pySeq)))
+
+        return True
+    except BaseException, e:
+        jsExc[0] = pyExceptionToJS(jsCtx, e)
+        return False
+    
+
+pySeqStaticProps[0].name = "length"
+pySeqStaticProps[0].getProperty = pySeqGetLength
+pySeqStaticProps[0].setProperty = pySeqSetLength
+pySeqStaticProps[0].attributes = \
+    kJSPropertyAttributeDontEnum | kJSPropertyAttributeDontDelete
+
+# Terminator entry.
+pySeqStaticProps[1].name = NULL
+pySeqStaticProps[1].getProperty = NULL
+pySeqStaticProps[1].setProperty = NULL
+pySeqStaticProps[1].attributes = 0
+
+# Class definition structure for PythonSequence.
+cdef JSClassDefinition pySeqClassDef = kJSClassDefinitionEmpty
+pySeqClassDef.className = 'PythonSequence'
+pySeqClassDef.staticValues = <JSStaticValue*>pySeqStaticProps
+pySeqClassDef.parentClass = pyObjectClass
+pySeqClassDef.hasProperty = pySeqHasProperty
+pySeqClassDef.getProperty = pySeqGetProperty
+pySeqClassDef.setProperty = pySeqSetProperty
+pySeqClassDef.deleteProperty = pySeqDeleteProperty
+
+# PythonObject class.
+cdef JSClassRef pySeqClass = JSClassCreate(&pySeqClassDef)
+
+
+# Wrap a Python object into the appropriate JavaScript class instance.
 cdef JSObjectRef makePyObject(JSContextRef jsCtx, object pyObj):
-    """Wrap a Python object into a JavaScript object."""
-    return JSObjectMake(jsCtx, pyObjectClass, <void *>pyObj)
+    """Wrap a Python object for use in JavaScript."""
+    if isinstance(pyObj, collections.Sequence):
+        return JSObjectMake(jsCtx, pySeqClass, <void *>pyObj)
+    else:
+        return JSObjectMake(jsCtx, pyObjectClass, <void *>pyObj)

@@ -300,6 +300,126 @@ class MethodCallTestCase(TestCaseWithContext):
         self.assertRaises(jscore.JSException, self.obj.k)
 
 
+class MappingTestCase(TestCaseWithContext):
+    """Test mapping behavior for wrapped JavaScript objects.
+
+    Tests compare the effect of applying the same expression to a
+    native Python dictionary and a wrapped JavaScript object.
+    """
+
+    def setUp(self):
+        TestCaseWithContext.setUp(self)
+        self.obj = \
+            self.ctx.evaluateScript("""({a: 11, b: 22, c: undefined,
+                                         1: 44, 2: 55})""")
+        self.objPython = {'a': 11, 'b': 22, 'c': None, '1': 44, '2': 55}
+
+    def evalPy(self, func):
+        func(self.obj)
+        func(self.objPython)
+
+    def assertEqualFunc(self, func, val='xyz'):
+        val1 = func(self.obj)
+        val2 = func(self.objPython)
+        self.assertEqual(val1, val2)
+        if val != 'xyz':
+            self.assertEqual(val1, val)
+
+    def assertRaisesFunc(self, exception, func):
+        def code1(): func(self.obj)
+        def code2(): func(self.objPython)
+        self.assertRaises(exception, code1)
+        self.assertRaises(exception, code2)
+
+    def tearDown(self):
+        if self.obj != self.objPython:
+            self.fail("Python object %s differs from JavaScript object %s" % \
+                          (repr(self.objPython),
+                           repr(dict(self.obj))))
+
+        TestCaseWithContext.tearDown(self)
+
+    def testAccess1(self):
+        self.assertEqualFunc(lambda o: o['a'])
+        self.assertEqualFunc(lambda o: o['2'])
+
+    def testAccess2(self):
+        self.assertEqualFunc(lambda o: o['c'])
+
+    def testAccess3(self):
+        self.assertRaisesFunc(KeyError, lambda o: o['x'])
+
+    def testGet1(self):
+        self.assertEqualFunc(lambda o: o.get('a', 3))
+        self.assertEqualFunc(lambda o: o.get('x', 3))
+
+    def testModif1(self):
+        def f(o): o['a'] = 111
+        self.evalPy(f)
+
+    def testModif2(self):
+        def f(o): o['a'] = 111; o['1'] = 444
+        self.evalPy(f)
+
+    def testExtend1(self):
+        def f(o): o['d'] = 666
+        self.evalPy(f)
+
+    def testExtend2(self):
+        def f(o): o['d'] = 666; o['3'] = 777
+        self.evalPy(f)
+
+    def testLen1(self):
+        self.assertEqualFunc(lambda o: len(o), 5)
+
+    def testLen2(self):
+        def f(o): o['d'] = 666; o['3'] = 777
+        self.evalPy(f)
+        self.assertEqualFunc(lambda o: len(o), 7)
+
+    def testDel1(self):
+        def f(o): del o['a']
+        self.evalPy(f)
+
+    def testDel2(self):
+        def f(o): del o['a']; del o['1']
+        self.evalPy(f)
+
+    def testDel3(self):
+        def f(o): del o['a']; del o['b']; del o['c']; del o['1']; del o['2']
+        self.evalPy(f)
+
+    def testDel4(self):
+        def f(o): del o['x']
+        self.assertRaisesFunc(KeyError, f)
+
+    def testIter1(self):
+        self.assertEqualFunc(lambda o: list(iter(o)).sort())
+
+    def testIter2(self):
+        self.assertEqualFunc(lambda o: list(o.iterkeys()).sort())
+
+    def testIter3(self):
+        self.assertEqualFunc(lambda o: list(o.itervalues()).sort())
+
+    def testIter4(self):
+        self.assertEqualFunc(lambda o: list(o.iteritems()).sort())
+
+    def testPop1(self):
+        self.assertEqualFunc(lambda o: o.pop('b'))
+
+    def testPop2(self):
+        self.assertRaisesFunc(KeyError, lambda o: o.pop('x'))
+
+    def testUpdate1(self):
+        def f(o): o.update({'a': 111, 'x': 777})
+        self.evalPy(f)
+
+    def testSetDefault1(self):
+        def f(o): o.setdefault('a', 111); o.setdefault('x', 777)
+        self.evalPy(f)
+
+
 class AsSeqTestCase(TestCaseWithContext):
     """Basic test of the asSeq operation."""
 

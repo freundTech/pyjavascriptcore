@@ -1138,8 +1138,77 @@ pySeqClassDef.getProperty = pySeqGetProperty
 pySeqClassDef.setProperty = pySeqSetProperty
 pySeqClassDef.deleteProperty = pySeqDeleteProperty
 
-# PythonObject class.
+# PythonSequence class.
 cdef JSClassRef pySeqClass = JSClassCreate(&pySeqClassDef)
+
+
+# PythonMapping: Specialized JavaScript wrapper for Python objects
+# implementing the mapping protocol.
+
+cdef void pyMapGetPropertyNames(JSContextRef jsCtx,
+                                JSObjectRef jsMap,
+                                JSPropertyNameAccumulatorRef jsPropertyNames):
+    cdef object pyMap = <object>JSObjectGetPrivate(jsMap)
+    cdef JSStringRef jsName
+
+    for pyName in pyMap:
+        jsName = createJSStringFromPython(pyName)
+        try:
+            JSPropertyNameAccumulatorAddName(jsPropertyNames, jsName)
+        finally:
+            JSStringRelease(jsName)
+
+cdef JSValueRef pyMapGetProperty(JSContextRef jsCtx,
+                                 JSObjectRef jsMap,
+                                 JSStringRef jsPropertyName,
+                                 JSValueRef* jsExc) with gil:
+    cdef object pyMap = <object>JSObjectGetPrivate(jsMap)
+    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+
+    try:
+        return pythonToJS(jsCtx, pyMap[pyPropertyName])
+    except:
+        return NULL
+
+cdef bool pyMapSetProperty(JSContextRef jsCtx,
+                           JSObjectRef jsMap,
+                           JSStringRef jsPropertyName,
+                           JSValueRef jsValue,
+                           JSValueRef* jsExc) with gil:
+    cdef object pyMap = <object>JSObjectGetPrivate(jsMap)
+    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+    cdef object pyValue = jsToPython(jsCtx, jsValue)
+
+    try:
+        pyMap[pyPropertyName] = pyValue
+        return True
+    except:
+        return False
+
+cdef bool pyMapDeleteProperty(JSContextRef jsCtx,
+                              JSObjectRef jsMap,
+                              JSStringRef jsPropertyName,
+                              JSValueRef* jsExc):
+    cdef object pyMap = <object>JSObjectGetPrivate(jsMap)
+    cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+
+    try:
+        del pyMap[pyPropertyName]
+        return True
+    except:
+        return False
+
+# Class definition structure for PythonMapping.
+cdef JSClassDefinition pyMapClassDef = kJSClassDefinitionEmpty
+pyMapClassDef.className = 'PythonMapping'
+pyMapClassDef.parentClass = pyObjectClass
+pyMapClassDef.getProperty = pyMapGetProperty
+pyMapClassDef.setProperty = pyMapSetProperty
+pyMapClassDef.deleteProperty = pyMapDeleteProperty
+pyMapClassDef.getPropertyNames = pyMapGetPropertyNames
+
+# PythonMapping class.
+cdef JSClassRef pyMapClass = JSClassCreate(&pyMapClassDef)
 
 
 # Wrap a Python object into the appropriate JavaScript class instance.
@@ -1147,5 +1216,7 @@ cdef JSObjectRef makePyObject(JSContextRef jsCtx, object pyObj):
     """Wrap a Python object for use in JavaScript."""
     if isinstance(pyObj, collections.Sequence):
         return JSObjectMake(jsCtx, pySeqClass, <void *>pyObj)
+    elif isinstance(pyObj, collections.Mapping):
+        return JSObjectMake(jsCtx, pyMapClass, <void *>pyObj)
     else:
         return JSObjectMake(jsCtx, pyObjectClass, <void *>pyObj)

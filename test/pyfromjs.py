@@ -124,6 +124,93 @@ class AttributeAccessTestCase(TestCaseWithContext):
         self.assertFalse(hasattr(self.obj, 'abc'))
 
 
+class MappingTestCase(TestCaseWithContext):
+    """Test mapping behavior for wrapped JavaScript objects.
+
+    Tests compare the effect of applying the same expression to a
+    native Python dictionary and a wrapped JavaScript object.
+    """
+
+    def setUp(self):
+        TestCaseWithContext.setUp(self)
+        self.objPython = {'a': 11, 'b': 22, 'c': None, '1': 44, '2': 55}
+        self.ctx.globalObject.objPython = self.objPython
+        self.ctx.evaluateScript("""objJS = {a: 11, b: 22, c: undefined,
+                                            1: 44, 2: 55}""")
+
+    def evalJS(self, expr):
+        self.ctx.evaluateScript('obj = objPython')
+        self.ctx.evaluateScript(expr)
+        self.ctx.evaluateScript('obj = objJS')
+        self.ctx.evaluateScript(expr)
+
+    def assertEqualExpr(self, expr, val='xyz'):
+        self.ctx.evaluateScript('obj = objPython')
+        val1 = self.ctx.evaluateScript(expr)
+        self.ctx.evaluateScript('obj = objJS')
+        val2 = self.ctx.evaluateScript(expr)
+
+        self.assertEqual(val1, val2)
+        if val != 'xyz':
+            self.assertEqual(val1, val)
+
+    def tearDown(self):
+        if self.objPython != self.ctx.globalObject.objJS:
+            self.fail("Python object %s differs from JavaScript object %s" % \
+                          (repr(self.objPython),
+                           repr(dict(self.ctx.globalObject.objJS))))
+
+        TestCaseWithContext.tearDown(self)
+
+    def testAccess1(self):
+        self.assertEqualExpr("obj['a']")
+        self.assertEqualExpr("obj['2']")
+
+    def testAccess2(self):
+        self.assertEqualExpr("obj['c']")
+
+    def testAccess3(self):
+        self.assertEqualExpr("obj['x']", None)
+
+    def testModif1(self):
+        self.evalJS("obj['a'] = 111")
+
+    def testModif2(self):
+        self.evalJS("obj['a'] = 111; obj['1'] = 444")
+
+    def testExtend1(self):
+        self.evalJS("obj['d'] = 666")
+
+    def testExtend2(self):
+        self.evalJS("obj['d'] = 666; obj['3'] = 777")
+
+    def testDel1(self):
+        self.evalJS("delete obj['a']")
+
+    def testDel2(self):
+        self.evalJS("delete obj['a']; delete obj['1']")
+
+    def testDel3(self):
+        self.evalJS("""delete obj['a']; delete obj['b']; delete obj['c'];
+                    delete obj['1']; delete obj['2']""")
+
+    def testDel4(self):
+        self.evalJS("delete obj['x']")
+
+    def testIter1(self):
+        self.ctx.evaluateScript("""
+            i = 0;
+            props = [];
+            for (prop in objPython) {
+                if (objPython.hasOwnProperty(prop)) {
+                    props[i] = prop;
+                }
+                i++;
+            }""")
+        self.assertEqual(sorted(self.objPython),
+                         sorted(asSeq(self.ctx.globalObject.props)))
+
+
 class ListAccessTestCase(TestCaseWithContext):
     """Access Python list-style objects from JavaScript.
 

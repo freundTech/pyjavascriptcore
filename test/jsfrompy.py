@@ -394,16 +394,16 @@ class MappingTestCase(TestCaseWithContext):
         self.assertRaisesFunc(KeyError, f)
 
     def testIter1(self):
-        self.assertEqualFunc(lambda o: list(iter(o)).sort())
+        self.assertEqualFunc(lambda o: sorted(list(iter(o))))
 
     def testIter2(self):
-        self.assertEqualFunc(lambda o: list(o.iterkeys()).sort())
+        self.assertEqualFunc(lambda o: sorted(list(o.iterkeys())))
 
     def testIter3(self):
-        self.assertEqualFunc(lambda o: list(o.itervalues()).sort())
+        self.assertEqualFunc(lambda o: sorted(list(o.itervalues())))
 
     def testIter4(self):
-        self.assertEqualFunc(lambda o: list(o.iteritems()).sort())
+        self.assertEqualFunc(lambda o: sorted(list(o.iteritems())))
 
     def testPop1(self):
         self.assertEqualFunc(lambda o: o.pop('b'))

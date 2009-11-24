@@ -211,6 +211,27 @@ class MappingTestCase(TestCaseWithContext):
                          sorted(asSeq(self.ctx.globalObject.props)))
 
 
+class FunctionMappingTestCase(MappingTestCase):
+    """Test mapping behavior for wrapped JavaScript functions.
+
+    JavaScript functions should behave as standard objects. Tests
+    compare the effect of applying the same expression to a native
+    Python dictionary and a wrapped JavaScript function.
+    """
+
+    def setUp(self):
+        TestCaseWithContext.setUp(self)
+        self.objPython = {'a': 11, 'b': 22, 'c': None, '1': 44, '2': 55}
+        self.ctx.globalObject.objPython = self.objPython
+        self.ctx.evaluateScript("""
+            objJS = function () {};
+            objJS['a'] = 11;
+            objJS['b'] = 22;
+            objJS['c'] = undefined;
+            objJS['1'] = 44;
+            objJS['2'] = 55;""")
+
+
 class ListAccessTestCase(TestCaseWithContext):
     """Access Python list-style objects from JavaScript.
 

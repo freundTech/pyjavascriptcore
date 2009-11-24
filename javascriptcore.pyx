@@ -745,9 +745,12 @@ cdef makeJSObject(JSContextRef jsCtx, JSObjectRef jsObject):
     return obj
 
 
-cdef class JSFunction(_JSObject):
+cdef class _JSFunction(_JSObject):
     """Specialized wrapper class to make JavaScript functions callable
-    from Python."""
+    from Python.
+
+    This class gets mixed with ``collections.MutableMapping in the
+    ``JSFunction`` class."""
 
     def __call__(self, *args):
         cdef JSValueRef *jsArgs
@@ -769,30 +772,39 @@ cdef class JSFunction(_JSObject):
             raise jsExceptionToPython(self.jsCtx, jsError)
         return jsToPython(self.jsCtx, result)
 
+
+class JSFunction(_JSFunction, collections.MutableMapping):
+    """Mix ``_JSFunction`` and ``collections.MutableMapping``."""
+    __slots__ = ()
+
+
 cdef makeJSFunction(JSContextRef jsCtx, JSObjectRef jsObject):
     """Factory function for 'JSFunction' instances."""
-    cdef JSFunction obj = JSFunction()
+    cdef _JSFunction obj = JSFunction()
     obj.setup(jsCtx, jsObject)
     return obj
 
 
-cdef class JSBoundMethod(_JSObject):
+cdef class _JSBoundMethod(_JSObject):
     """A JavaScript bound method.
 
     Instances of this class operate in a similar way to Python bound
     methods, but they encapsulate a JavaScript object and
     function. When they are called, the function is called with the
-    object as 'this' object."""
+    object as 'this' object.
 
-    cdef JSObjectRef thisObj 
+    This class gets mixed with ``collections.MutableMapping in the
+    ``JSBoundMethod`` class."""
+
+    cdef JSObjectRef jsThisObj 
 
     cdef setup2(self, JSContextRef jsCtx, JSObjectRef jsObject,
-                JSObjectRef thisObj):
+                JSObjectRef jsThisObj):
         _JSObject.setup(self, jsCtx, jsObject)
-        # __dealloc__ unprotects thisObj, so that it's guaranteed to
+        # __dealloc__ unprotects jsThisObj, so that it's guaranteed to
         # exist as long as this object exists.
-        JSValueProtect(jsCtx, thisObj)
-        self.thisObj = thisObj
+        JSValueProtect(jsCtx, jsThisObj)
+        self.jsThisObj = jsThisObj
 
     def __call__(self, *args):
         cdef JSValueRef *jsArgs
@@ -806,7 +818,7 @@ cdef class JSBoundMethod(_JSObject):
         for i, arg in enumerate(args):
             jsArgs[i] = pythonToJS(self.jsCtx, arg)
         result = JSObjectCallAsFunction(self.jsCtx, self.jsObject,
-                                        self.thisObj, len(args), jsArgs,
+                                        self.jsThisObj, len(args), jsArgs,
                                         &jsError)
         free(jsArgs)
         if jsError != NULL:
@@ -814,12 +826,18 @@ cdef class JSBoundMethod(_JSObject):
         return jsToPython(self.jsCtx, result)
 
     def __dealloc__(self):
-        JSValueUnprotect(self.jsCtx, self.thisObj)
+        JSValueUnprotect(self.jsCtx, self.jsThisObj)
+
+
+class JSBoundMethod(_JSBoundMethod, collections.MutableMapping):
+    """Mix ``_JSBoundMethod`` and ``collections.MutableMapping``."""
+    __slots__ = ()
+
 
 cdef makeJSBoundMethod(JSContextRef jsCtx, JSObjectRef jsObject,
                        JSObjectRef thisObj):
     """Factory function for 'JSBoundMethod' instances."""
-    cdef JSBoundMethod obj = JSBoundMethod()
+    cdef _JSBoundMethod obj = JSBoundMethod()
     obj.setup2(jsCtx, jsObject, thisObj)
     return obj
 

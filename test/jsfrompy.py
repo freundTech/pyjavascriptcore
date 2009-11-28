@@ -125,7 +125,7 @@ class ContextLifeTestCase(unittest.TestCase):
 
 
 class WrapUnwrapTestCase(TestCaseWithContext):
-    """Wrap objects and unwrap them again.
+    """Test object wrapping and unwrapping.
     """
 
     def setUp(self):
@@ -142,6 +142,21 @@ class WrapUnwrapTestCase(TestCaseWithContext):
     def testWrapUnwrap2(self):
         self.ctx.globalObject.obj2 = self.ctx.globalObject.obj
         self.assertTrue(self.ctx.evaluateScript('obj === obj2'))
+
+    def testIdentity1(self):
+        obj2 = self.ctx.evaluateScript("obj")
+        self.assertTrue(self.obj is obj2)
+
+    def testIdentity2(self):
+        obj2 = self.ctx.evaluateScript("({c: 3})")
+        self.assertFalse(self.obj is obj2)
+
+    def testCachedWrappers1(self):
+        l1 = jscore._cachedStats()['wrappedJSObjsCount']
+        obj2 = self.ctx.evaluateScript("({c: 3})")
+        self.assertTrue(jscore._cachedStats()['wrappedJSObjsCount'] > l1)
+        del obj2
+        self.assertTrue(jscore._cachedStats()['wrappedJSObjsCount'] == l1)
 
 
 class NullUndefTestCase(TestCaseWithContext):

@@ -26,6 +26,8 @@ sys.path.insert(0, baseDir)
 
 import unittest
 
+import javascriptcore as jscore
+
 import jsfrompy
 import pyfromjs
 
@@ -37,3 +39,11 @@ _moduleSuites = [
 
 mainSuite = unittest.TestSuite(_moduleSuites)
 unittest.TextTestRunner(verbosity=2).run(mainSuite)
+
+# These objects store intances of the test cases, we must delete them
+# before...
+del mainSuite
+del _moduleSuites
+
+# ... we can check that nothing is still hanging around in the cache.
+assert jscore._cachedStats()['wrappedJSObjsCount'] == 0

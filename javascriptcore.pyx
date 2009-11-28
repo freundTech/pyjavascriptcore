@@ -26,6 +26,7 @@ Two-way binding between CPython and WebKit's JavaScriptCore.
 import sys
 import types
 import collections
+import weakref
 
 cdef:
     ctypedef unsigned short bool
@@ -63,8 +64,33 @@ Null = NullType()
 
 
 #
-# Value Conversion
+# Value conversion
 #
+
+# A dictionary associating wrapped JavaScript objects to their Python
+# wrappers. This way, if an object is wrapped twice, the second attemp
+# at wrapping can return the same wrapper.
+#
+# Keys are pointers to JavaScript objects cast to int and converted to
+# Python objects. Values are (weak references to) the corresponding
+# wrappers.
+cdef object _pyWrappedJSObjs = weakref.WeakValueDictionary()
+
+cdef object wrapJSObject(JSContextRef jsCtx, JSValueRef jsValue):
+    cdef object wrapped
+
+    try:
+        return _pyWrappedJSObjs[<int>jsValue]
+    except KeyError:
+        pass
+
+    if JSObjectIsFunction(jsCtx, jsValue):
+        wrapper = makeJSFunction(jsCtx, jsValue)
+    else:
+        wrapper = makeJSObject(jsCtx, jsValue)
+
+    _pyWrappedJSObjs[<int>jsValue] = wrapper
+    return wrapper
 
 cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):
     """Convert a JavaScript value into a Python value."""
@@ -91,10 +117,8 @@ cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):
     elif JSValueIsObjectOfClass(jsCtx, jsValue, pyObjectClass):
         # This is a wrapped Python object. Just unwrap it.
         return <object>JSObjectGetPrivate(jsValue)
-    elif JSObjectIsFunction(jsCtx, jsValue):
-        return makeJSFunction(jsCtx, jsValue)
     else:
-        return makeJSObject(jsCtx, jsValue)
+        return wrapJSObject(jsCtx, jsValue)
 
     return None
 
@@ -176,6 +200,9 @@ cdef class _JSBaseObject:
 
     This class only manages object allocation and deallocation.
     """
+
+    # Make it possible to have weak references to this object.
+    cdef object __weakref__
 
     cdef JSContextRef jsCtx
     cdef JSObjectRef jsObject
@@ -1238,3 +1265,12 @@ cdef JSObjectRef makePyObject(JSContextRef jsCtx, object pyObj):
         return JSObjectMake(jsCtx, pyMapClass, <void *>pyObj)
     else:
         return JSObjectMake(jsCtx, pyObjectClass, <void *>pyObj)
+
+
+#
+# Debugging and testing operations
+#
+
+def _cachedStats():
+    """Returns statistics about the wrappers cached in this moduel."""
+    return {'wrappedJSObjsCount': len(_pyWrappedJSObjs)}

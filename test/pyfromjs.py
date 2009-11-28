@@ -27,7 +27,7 @@ from base import TestCaseWithContext
 
 
 class WrapUnwrapTestCase(TestCaseWithContext):
-    """Wrap objects and unwrap them again.
+    """Test object wrapping and unwrapping.
     """
 
     def setUp(self):
@@ -51,6 +51,16 @@ class WrapUnwrapTestCase(TestCaseWithContext):
     def testWrapUnwrap4(self):
         self.ctx.globalObject.obj = self.obj
         self.assertTrue(self.obj is self.ctx.evaluateScript('obj'))
+
+    def testIdentity1(self):
+        self.ctx.globalObject.obj = self.obj
+        self.ctx.globalObject.obj2 = self.obj
+        self.assertTrueJS('obj === obj2')
+
+    def testIdentity2(self):
+        self.ctx.globalObject.obj = self.obj
+        self.ctx.globalObject.obj2 = (self.obj, 4)
+        self.assertTrueJS('obj === obj2[0]')
 
 
 class NullUndefTestCase(TestCaseWithContext):

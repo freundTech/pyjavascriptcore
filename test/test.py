@@ -47,3 +47,4 @@ del _moduleSuites
 
 # ... we can check that nothing is still hanging around in the cache.
 assert jscore._cachedStats()['wrappedJSObjsCount'] == 0
+assert jscore._cachedStats()['wrappedPyObjsCount'] == 0

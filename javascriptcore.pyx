@@ -67,17 +67,28 @@ Null = NullType()
 # Value conversion
 #
 
+# Wrapper cache. All attempts at wrapping a single object should
+# return the same wrapper. This way, there is a one-to-one
+# relationship between wrappers and their wrapped objects.  The
+# following dictionaries maintain this relationship:
+
 # A dictionary associating wrapped JavaScript objects to their Python
-# wrappers. This way, if an object is wrapped twice, the second attemp
-# at wrapping can return the same wrapper.
-#
-# Keys are pointers to JavaScript objects cast to int and converted to
-# Python objects. Values are (weak references to) the corresponding
+# wrappers.  Keys are pointers to JavaScript objects cast to int (and
+# converted to Python integers to store them in the
+# dictionary). Values are (weak references to) the corresponding
 # wrappers.
 cdef object _pyWrappedJSObjs = weakref.WeakValueDictionary()
 
+# A dictionary associating wrapped Python objects to their JavaScript
+# wrappers. Keys are ids of Python objects, as returned by the id()
+# function. Values are pointers to the corresponding JavaScript
+# wrappers enclosed in PyCObject instances. Wrappers are deleted from
+# this dictionary when they get garbage collected (see finalizeCb).
+cdef object _pyWrappedPyObjs = {}
+
+
 cdef object wrapJSObject(JSContextRef jsCtx, JSValueRef jsValue):
-    cdef object wrapped
+    cdef object wrapper
 
     try:
         return _pyWrappedJSObjs[<int>jsValue]
@@ -162,6 +173,18 @@ cdef JSStringRef createJSStringFromPython(object pyStr):
     pyStr = unicode(pyStr).encode('utf-8')
     return JSStringCreateWithUTF8CString(pyStr)
 
+cdef JSObjectRef wrapPyObject(JSContextRef jsCtx, object pyValue):
+    cdef JSObjectRef wrapper
+
+    try:
+        return <JSObjectRef>PyCObject_AsVoidPtr(_pyWrappedPyObjs[id(pyValue)])
+    except KeyError:
+        pass
+
+    wrapper = makePyObject(jsCtx, pyValue)
+    _pyWrappedPyObjs[id(pyValue)] = PyCObject_FromVoidPtr(wrapper, NULL)
+    return wrapper
+
 cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
     """Convert a Python value into a JavaScript value.
 
@@ -184,7 +207,7 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
         return (<_JSObject>pyValue).jsObject
     else:
         # Wrap all other Python objects into a generic wrapper.
-        return makePyObject(jsCtx, pyValue)
+        return wrapPyObject(jsCtx, pyValue)
 
 
 #
@@ -1032,6 +1055,9 @@ cdef JSValueRef pyObjCallAsFunction(JSContextRef jsCtx,
 cdef void finalizeCb(JSObjectRef jsObj):
     cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
 
+    # Remove this wrapper from the wrapper cache.
+    del _pyWrappedPyObjs[id(pyObj)]
+
     Py_DECREF(pyObj)
 
 # Class definition structure for PythonObject.
@@ -1273,4 +1299,6 @@ cdef JSObjectRef makePyObject(JSContextRef jsCtx, object pyObj):
 
 def _cachedStats():
     """Returns statistics about the wrappers cached in this moduel."""
-    return {'wrappedJSObjsCount': len(_pyWrappedJSObjs)}
+    return {'wrappedJSObjsCount': len(_pyWrappedJSObjs),
+            'wrappedPyObjsCount': len(_pyWrappedPyObjs),
+            }

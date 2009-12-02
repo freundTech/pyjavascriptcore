@@ -67,15 +67,21 @@ class EvaluateScriptTestCase(TestCaseWithContext):
         self.assertTrue(self.ctx.evaluateScript('false') is False)
 
     def testEvaluateInt1(self):
-        self.assertEqual(self.ctx.evaluateScript('3 + 2'), 5)
+        res = self.ctx.evaluateScript('3 + 2')
+        self.assertTrue(isinstance(res, int))
+        self.assertEqual(res, 5)
 
     def testEvaluateInt2(self):
         program = '(function(x){return x+2;})(3)'
-        self.assertEqual(self.ctx.evaluateScript(program), 5)
+        res = self.ctx.evaluateScript(program)
+        self.assertTrue(isinstance(res, int))
+        self.assertEqual(res, 5)
 
     def testEvaluateInt3(self):
         program = 'a = 3; a'
-        self.assertEqual(self.ctx.evaluateScript(program), 3)
+        res = self.ctx.evaluateScript(program)
+        self.assertTrue(isinstance(res, int))
+        self.assertEqual(res, 3)
 
     def testEvaluateString1(self):
         self.assertEqual(self.ctx.evaluateScript('"a"'), 'a')

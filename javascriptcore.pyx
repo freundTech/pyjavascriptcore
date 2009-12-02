@@ -108,6 +108,8 @@ cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):
 
     cdef int jsType = JSValueGetType(jsCtx, jsValue)
     cdef JSStringRef jsStr
+    cdef double doubleVal
+    cdef long intVal
 
     if jsType == kJSTypeUndefined:
         return None
@@ -116,7 +118,14 @@ cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):
     elif jsType == kJSTypeBoolean:
         return types.BooleanType(JSValueToBoolean(jsCtx, jsValue))
     elif jsType == kJSTypeNumber:
-        return JSValueToNumber(jsCtx, jsValue, NULL)
+        # If the value is actually an integer, return it is an
+        # instance of Python's int type.
+        doubleVal = JSValueToNumber(jsCtx, jsValue, NULL)
+        intVal = <long>doubleVal
+        if intVal == doubleVal:
+            return intVal
+        else:
+            return doubleVal
     elif jsType == kJSTypeString:
         jsStr = JSValueToStringCopy(jsCtx, jsValue, NULL)
         try:

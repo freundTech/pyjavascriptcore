@@ -83,7 +83,7 @@ cdef object _pyWrappedJSObjs = weakref.WeakValueDictionary()
 # wrappers. Keys are ids of Python objects, as returned by the id()
 # function. Values are pointers to the corresponding JavaScript
 # wrappers enclosed in PyCObject instances. Wrappers are deleted from
-# this dictionary when they get garbage collected (see finalizeCb).
+# this dictionary when they get garbage collected (see pyObjFinalize).
 cdef object _pyWrappedPyObjs = {}
 
 
@@ -1061,7 +1061,7 @@ cdef JSValueRef pyObjCallAsFunction(JSContextRef jsCtx,
     except BaseException, e:
         jsExc[0] = pyExceptionToJS(jsCtx, e)
 
-cdef void finalizeCb(JSObjectRef jsObj) with gil:
+cdef void pyObjFinalize(JSObjectRef jsObj) with gil:
     cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
 
     # Remove this wrapper from the wrapper cache.
@@ -1077,7 +1077,7 @@ pyObjectClassDef.getProperty = pyObjGetProperty
 pyObjectClassDef.setProperty = pyObjSetProperty
 pyObjectClassDef.deleteProperty = pyObjDeleteProperty
 pyObjectClassDef.callAsFunction = pyObjCallAsFunction
-pyObjectClassDef.finalize = finalizeCb
+pyObjectClassDef.finalize = pyObjFinalize
 
 # PythonObject class.
 cdef JSClassRef pyObjectClass = JSClassCreate(&pyObjectClassDef)

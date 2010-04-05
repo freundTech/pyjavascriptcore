@@ -1030,7 +1030,7 @@ cdef bool pyObjSetProperty(JSContextRef jsCtx,
 cdef bool pyObjDeleteProperty(JSContextRef jsCtx,
                               JSObjectRef jsObj,
                               JSStringRef jsPropertyName,
-                              JSValueRef* jsExc):
+                              JSValueRef* jsExc) with gil:
     cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
     cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
 
@@ -1061,7 +1061,7 @@ cdef JSValueRef pyObjCallAsFunction(JSContextRef jsCtx,
     except BaseException, e:
         jsExc[0] = pyExceptionToJS(jsCtx, e)
 
-cdef void finalizeCb(JSObjectRef jsObj):
+cdef void finalizeCb(JSObjectRef jsObj) with gil:
     cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
 
     # Remove this wrapper from the wrapper cache.
@@ -1099,7 +1099,7 @@ cdef object makePyIndex(pyPropertyName):
 
 cdef bool pySeqHasProperty(JSContextRef jsCtx,
                            JSObjectRef jsSeq,
-                           JSStringRef jsPropertyName):
+                           JSStringRef jsPropertyName) with gil:
     cdef object pySeq = <object>JSObjectGetPrivate(jsSeq)
     cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
 
@@ -1146,7 +1146,7 @@ cdef bool pySeqSetProperty(JSContextRef jsCtx,
 cdef bool pySeqDeleteProperty(JSContextRef jsCtx,
                               JSObjectRef jsSeq,
                               JSStringRef jsPropertyName,
-                              JSValueRef* jsExc):
+                              JSValueRef* jsExc) with gil:
     cdef object pySeq = <object>JSObjectGetPrivate(jsSeq)
     cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
 
@@ -1227,7 +1227,8 @@ cdef JSClassRef pySeqClass = JSClassCreate(&pySeqClassDef)
 
 cdef void pyMapGetPropertyNames(JSContextRef jsCtx,
                                 JSObjectRef jsMap,
-                                JSPropertyNameAccumulatorRef jsPropertyNames):
+                                JSPropertyNameAccumulatorRef
+                                  jsPropertyNames) with gil:
     cdef object pyMap = <object>JSObjectGetPrivate(jsMap)
     cdef JSStringRef jsName
 
@@ -1268,7 +1269,7 @@ cdef bool pyMapSetProperty(JSContextRef jsCtx,
 cdef bool pyMapDeleteProperty(JSContextRef jsCtx,
                               JSObjectRef jsMap,
                               JSStringRef jsPropertyName,
-                              JSValueRef* jsExc):
+                              JSValueRef* jsExc) with gil:
     cdef object pyMap = <object>JSObjectGetPrivate(jsMap)
     cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
 

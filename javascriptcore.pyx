@@ -69,14 +69,15 @@ Null = NullType()
 
 # Wrapper cache. All attempts at wrapping a single object should
 # return the same wrapper. This way, there is a one-to-one
-# relationship between wrappers and their wrapped objects.  The
+# relationship between wrappers and their wrapped objects. The
 # following dictionaries maintain this relationship:
 
 # A dictionary associating wrapped JavaScript objects to their Python
-# wrappers.  Keys are pointers to JavaScript objects cast to int (and
-# converted to Python integers to store them in the
+# wrappers.  Keys are pointers to JavaScript objects cast to long int
+# (and converted to Python integers to store them in the
 # dictionary). Values are (weak references to) the corresponding
-# wrappers.
+# wrappers. Notice that casting to the long type is necessary because
+# pointers are larger than plain ints in 64-bit platforms.
 cdef object _pyWrappedJSObjs = weakref.WeakValueDictionary()
 
 # A dictionary associating wrapped Python objects to their JavaScript
@@ -91,7 +92,7 @@ cdef object wrapJSObject(JSContextRef jsCtx, JSValueRef jsValue):
     cdef object wrapper
 
     try:
-        return _pyWrappedJSObjs[<int>jsValue]
+        return _pyWrappedJSObjs[<long>jsValue]
     except KeyError:
         pass
 
@@ -100,7 +101,7 @@ cdef object wrapJSObject(JSContextRef jsCtx, JSValueRef jsValue):
     else:
         wrapper = makeJSObject(jsCtx, jsValue)
 
-    _pyWrappedJSObjs[<int>jsValue] = wrapper
+    _pyWrappedJSObjs[<long>jsValue] = wrapper
     return wrapper
 
 cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):

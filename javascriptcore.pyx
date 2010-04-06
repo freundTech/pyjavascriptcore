@@ -989,7 +989,7 @@ cdef JSValueRef pyExceptionToJS(JSContextRef jsCtx, object exc):
 # PythonObject: Generic JavaScript wrapper for Python objects.
 
 cdef void pyObjInitialize(JSContextRef ctx,
-                          JSObjectRef jsObj):
+                          JSObjectRef jsObj) with gil:
     cdef object pyObj = <object>JSObjectGetPrivate(jsObj)
 
     # Keep a reference to the wrapped Python object during the

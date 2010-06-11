@@ -29,6 +29,8 @@ cdef extern from "JavaScriptCore/JSValueRef.h":
 
     bool JSValueIsObjectOfClass(JSContextRef ctx, JSValueRef value,
                                 JSClassRef jsClass)
+    
+    bool JSValueIsObject(JSContextRef ctx, JSValueRef value)
 
     bool JSValueIsStrictEqual(JSContextRef ctx, JSValueRef a, JSValueRef b)
 

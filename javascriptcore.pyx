@@ -596,7 +596,8 @@ cdef class _JSObject(_JSBaseObject):
                         "JavaScript object has no property '%s'" % pyName
             elif not JSValueIsObjectOfClass(self.jsCtx, jsResult,
                                           pyObjectClass) and \
-                  JSObjectIsFunction(self.jsCtx, jsResult):
+                  JSValueIsObject(self.jsCtx, jsResult) and \
+                  JSObjectIsFunction(self.jsCtx, jsResult):                  
                 # This is a native JavaScript function, we mimic
                 # Python's behavior and return it bound to this
                 # object.

@@ -130,7 +130,7 @@ cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):
     elif jsType == kJSTypeString:
         jsStr = JSValueToStringCopy(jsCtx, jsValue, NULL)
         try:
-            return PyUnicode_DecodeUTF16(JSStringGetCharactersPtr(jsStr),
+            return PyUnicode_DecodeUTF16(<Py_UNICODE*>JSStringGetCharactersPtr(jsStr),
                                          JSStringGetLength(jsStr) * 2,
                                          NULL, 0)
         finally:
@@ -171,7 +171,7 @@ cdef object jsExceptionToPython(JSContextRef jsCtx, JSValueRef jsException):
 
 
 cdef object pyStringFromJS(JSStringRef jsString):
-    return PyUnicode_DecodeUTF16(JSStringGetCharactersPtr(jsString),
+    return PyUnicode_DecodeUTF16(<Py_UNICODE *>JSStringGetCharactersPtr(jsString),
                                  JSStringGetLength(jsString) * 2,
                                  NULL, 0)
 

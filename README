@@ -1,5 +1,9 @@
 Original copyright notice:
 
+  version 0.0004
+  Added support for python3.1+
+  Removed support for older versions. Please keep using 0.0003
+
   version 0.0003
   Applied the patches supplied by MonkeeSage Thanx :)
   This fixes the ucs2/ucs4 bug which I had earlier
@@ -17,7 +21,3 @@ Original copyright notice:
   Also do not blame me if your things blow up
   if you need to contact me, i might answer back :) I am lazy when it comes to making fixes
   unless I actually am using library myself :)
-
-  my email
-  import binascii
-  binascii.a2b_base64('anBqYW5lY2VrQGdtYWlsLmNvbQ==\n')

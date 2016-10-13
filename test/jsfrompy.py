@@ -19,6 +19,7 @@
 # Boston, MA 02111-1307, USA. 
 
 import unittest
+import sys
 
 import javascriptcore as jscore
 from javascriptcore import asSeq
@@ -226,7 +227,7 @@ class AttributeAccessTestCase(TestCaseWithContext):
 
     def testAccessError(self):
         def code():
-            print self.obj.abc
+            print(self.obj.abc)
 
         self.assertRaises(AttributeError, code)
 
@@ -418,13 +419,13 @@ class MappingTestCase(TestCaseWithContext):
         self.assertEqualFunc(lambda o: sorted(list(iter(o))))
 
     def testIter2(self):
-        self.assertEqualFunc(lambda o: sorted(list(o.iterkeys())))
+        self.assertEqualFunc(lambda o: sorted(list(iter(o.keys()))))
 
     def testIter3(self):
-        self.assertEqualFunc(lambda o: sorted(list(o.itervalues())))
+        self.assertEqualFunc(lambda o: sorted(list(iter(o.values())), key=lambda a: -sys.maxsize-1 if a == None else a)) #Python3 can't sort NoneType
 
     def testIter4(self):
-        self.assertEqualFunc(lambda o: sorted(list(o.iteritems())))
+        self.assertEqualFunc(lambda o: sorted(list(iter(o.items()))))
 
     def testPop1(self):
         self.assertEqualFunc(lambda o: o.pop('b'))

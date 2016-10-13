@@ -25,10 +25,6 @@ cdef extern from "Python.h":
     void Py_INCREF(object o)
     void Py_DECREF(object o)
 
-    object PyCObject_FromVoidPtr(void* cobj, void (*destr)(void *))
-    void* PyCObject_AsVoidPtr(object self)
-    char* PyCObject_GetDesc(object self)
-
     char* PyString_AsString(object o)
 
     object PyUnicode_DecodeUTF16(Py_UNICODE *u, Py_ssize_t size,

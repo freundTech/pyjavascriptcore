@@ -27,6 +27,8 @@ import sys
 import types
 import collections
 import weakref
+from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
+from cpython cimport bool as py_bool
 
 cdef:
     ctypedef unsigned short bool
@@ -54,7 +56,7 @@ class NullType(object):
             raise TypeError("cannot create '%s' instances"
                             % self.__class__.__name__)
 
-    def __nonzero__(self):
+    def __bool__(self):
         # As in javascript, the Null value has a false boolean value.
         return False
 
@@ -83,7 +85,7 @@ cdef object _pyWrappedJSObjs = weakref.WeakValueDictionary()
 # A dictionary associating wrapped Python objects to their JavaScript
 # wrappers. Keys are ids of Python objects, as returned by the id()
 # function. Values are pointers to the corresponding JavaScript
-# wrappers enclosed in PyCObject instances. Wrappers are deleted from
+# wrappers enclosed in PyCapsule instances. Wrappers are deleted from
 # this dictionary when they get garbage collected (see pyObjFinalize).
 cdef object _pyWrappedPyObjs = {}
 
@@ -117,7 +119,7 @@ cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):
     if jsType == kJSTypeNull:
         return Null
     elif jsType == kJSTypeBoolean:
-        return types.BooleanType(JSValueToBoolean(jsCtx, jsValue))
+        return py_bool(JSValueToBoolean(jsCtx, jsValue))
     elif jsType == kJSTypeNumber:
         # If the value is actually an integer, return it is an
         # instance of Python's int type.
@@ -187,12 +189,12 @@ cdef JSObjectRef wrapPyObject(JSContextRef jsCtx, object pyValue):
     cdef JSObjectRef wrapper
 
     try:
-        return <JSObjectRef>PyCObject_AsVoidPtr(_pyWrappedPyObjs[id(pyValue)])
+        return <JSObjectRef>PyCapsule_GetPointer(_pyWrappedPyObjs[id(pyValue)], NULL)
     except KeyError:
         pass
 
     wrapper = makePyObject(jsCtx, pyValue)
-    _pyWrappedPyObjs[id(pyValue)] = PyCObject_FromVoidPtr(wrapper, NULL)
+    _pyWrappedPyObjs[id(pyValue)] = PyCapsule_New(wrapper, NULL, NULL)
     return wrapper
 
 cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
@@ -202,15 +204,15 @@ cdef JSValueRef pythonToJS(JSContextRef jsCtx, object pyValue):
     protected if it is going to be permanently stored (e.g., inside an
     object)."""
 
-    if isinstance(pyValue, types.NoneType):
+    if pyValue is None:
         return JSValueMakeUndefined(jsCtx)
     elif isinstance(pyValue, NullType):
         return JSValueMakeNull(jsCtx)
-    elif isinstance(pyValue, types.BooleanType):
+    elif isinstance(pyValue,py_bool):
         return JSValueMakeBoolean(jsCtx, pyValue)
-    elif isinstance(pyValue, (types.IntType, types.FloatType)):
+    elif isinstance(pyValue, (int, float)):
         return JSValueMakeNumber(jsCtx, pyValue)
-    elif isinstance(pyValue, types.StringTypes):
+    elif isinstance(pyValue, basestring):
         return JSValueMakeString(jsCtx, createJSStringFromPython(pyValue))
     elif isinstance(pyValue, _JSBaseObject):
         # This is a wrapped JavaScript object, just unwrap it.
@@ -925,7 +927,7 @@ cdef class JSContext:
             self.pyCtxExtern = None
         else:
             # Extract the actual context object.
-            self.jsCtx = <JSContextRef>PyCObject_AsVoidPtr(pyCtxExtern)
+            self.jsCtx = <JSContextRef>PyCapsule_GetPointer(pyCtxExtern, NULL)
             JSGlobalContextRetain(self.jsCtx)
             self.pyCtxExtern = pyCtxExtern
 
@@ -1151,10 +1153,12 @@ cdef bool pySeqDeleteProperty(JSContextRef jsCtx,
                               JSValueRef* jsExc) with gil:
     cdef object pySeq = <object>JSObjectGetPrivate(jsSeq)
     cdef object pyPropertyName = pyStringFromJS(jsPropertyName)
+    cdef object pyIndex = makePyIndex(pyPropertyName)
 
     try:
         # Delete behaves differently in JavaScript.
-        pySeq[makePyIndex(pyPropertyName)] = None
+        if pyIndex < len(pySeq):
+            pySeq[makePyIndex(pyPropertyName)] = None
         return True
     except:
         return False

@@ -32,12 +32,12 @@ import subprocess
 pkgconfig = subprocess.Popen("pkg-config --cflags webkit-1.0",
                              stdout=subprocess.PIPE, shell=True)
 pkgconfig.wait()
-extra_compile_args = pkgconfig.stdout.read().split()
+extra_compile_args = [s.decode("utf-8") for s in pkgconfig.stdout.read().split()]
 
 pkgconfig = subprocess.Popen("pkg-config --libs webkit-1.0",
                              stdout=subprocess.PIPE, shell=True)
 pkgconfig.wait()
-extra_link_args = pkgconfig.stdout.read().split()
+extra_link_args = [s.decode("utf-8") for s in pkgconfig.stdout.read().split()]
 
 setup(
     name = "javascriptcore",

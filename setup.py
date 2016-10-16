@@ -28,6 +28,26 @@ from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 import subprocess
+import sys
+
+version = "0.0005"
+description = "Javascript Core for Python"
+pkgconfig_file = "pyjavascriptcore.pc"
+
+def createPcFile(PcFile):
+    print("creating %s" % PcFile)
+    with open(PcFile, 'w') as fo:
+        fo.write("""\
+prefix=%s
+
+Name: PyJavaScriptCore
+Description: %s
+Version: %s
+Requires: webkit-1.0
+Cflags: -I${prefix}/include/pyjavascriptcore
+Libs:
+""" % (sys.prefix, description, version)
+        )
 
 pkgconfig = subprocess.Popen("pkg-config --cflags webkit-1.0",
                              stdout=subprocess.PIPE, shell=True)
@@ -39,13 +59,19 @@ pkgconfig = subprocess.Popen("pkg-config --libs webkit-1.0",
 pkgconfig.wait()
 extra_link_args = [s.decode("utf-8") for s in pkgconfig.stdout.read().split()]
 
+createPcFile(pkgconfig_file)
+
 setup(
-    name = "javascriptcore",
-    version = "0.0003",
-    description = "Javascript Core for Python",
+    name = "pyjavascriptcore",
+    version = version,
+    description = description, 
     cmdclass = {'build_ext': build_ext},
-    ext_modules = [Extension("javascriptcore", ["javascriptcore.pyx"],
+    ext_modules = [Extension("javascriptcore", ["pyjavascriptcore.pyx"],
                              extra_compile_args = extra_compile_args,
                              extra_link_args = extra_link_args
-                             )]
+                             )],
+    data_files = [
+        ('include/pyjavascriptcore', ['pyjavascriptcore.h']),
+        ('lib/pkgconfig', [pkgconfig_file])
+        ]
     )

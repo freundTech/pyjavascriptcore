@@ -905,7 +905,7 @@ cdef makeJSBoundMethod(JSContextRef jsCtx, JSObjectRef jsObject,
     return obj
 
 
-cdef class JSContext:
+cdef public class JSContext[object jscontext_t, type jscontext]:
     """Wrapper class for JavaScriptCore context objects.
 
     Call the constructor without arguments to obtain a new default
@@ -965,6 +965,12 @@ cdef class JSContext:
 
     def __dealloc__(self):
         JSGlobalContextRelease(self.jsCtx)
+
+cdef public JSContext PyJSContext_New(JSContextRef pyCtxExtern):
+    return JSContext(PyCapsule_New(pyCtxExtern, NULL, NULL))
+
+cdef public JSContextRef PyJSContext_GetContext(jsCtx):
+    return <JSContextRef>PyCapsule_GetPointer(jsCtx.getCtx(), NULL)
 
 
 #

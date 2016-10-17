@@ -43,18 +43,18 @@ prefix=%s
 Name: PyJavaScriptCore
 Description: %s
 Version: %s
-Requires: webkit-1.0
+Requires: webkit2gtk-4.0
 Cflags: -I${prefix}/include/pyjavascriptcore
 Libs:
 """ % (sys.prefix, description, version)
         )
 
-pkgconfig = subprocess.Popen("pkg-config --cflags webkit-1.0",
+pkgconfig = subprocess.Popen("pkg-config --cflags webkit2gtk-4.0",
                              stdout=subprocess.PIPE, shell=True)
 pkgconfig.wait()
 extra_compile_args = [s.decode("utf-8") for s in pkgconfig.stdout.read().split()]
 
-pkgconfig = subprocess.Popen("pkg-config --libs webkit-1.0",
+pkgconfig = subprocess.Popen("pkg-config --libs webkit2gtk-4.0",
                              stdout=subprocess.PIPE, shell=True)
 pkgconfig.wait()
 extra_link_args = [s.decode("utf-8") for s in pkgconfig.stdout.read().split()]
@@ -71,7 +71,7 @@ setup(
                              extra_link_args = extra_link_args
                              )],
     data_files = [
-        ('include/pyjavascriptcore', ['pyjavascriptcore.h']),
+        ('include/pyjavascriptcore', ['pyjavascriptcore_api.h']),
         ('lib/pkgconfig', [pkgconfig_file])
         ]
     )

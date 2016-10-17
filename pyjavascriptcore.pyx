@@ -905,7 +905,7 @@ cdef makeJSBoundMethod(JSContextRef jsCtx, JSObjectRef jsObject,
     return obj
 
 
-cdef public class JSContext[object jscontext_t, type jscontext]:
+cdef class JSContext:
     """Wrapper class for JavaScriptCore context objects.
 
     Call the constructor without arguments to obtain a new default
@@ -927,7 +927,7 @@ cdef public class JSContext[object jscontext_t, type jscontext]:
             self.pyCtxExtern = None
         else:
             # Extract the actual context object.
-            self.jsCtx = <JSContextRef>PyCapsule_GetPointer(pyCtxExtern, NULL)
+            self.jsCtx = <JSContextRef>PyCapsule_GetPointer(pyCtxExtern, "JSContextRef")
             JSGlobalContextRetain(self.jsCtx)
             self.pyCtxExtern = pyCtxExtern
 
@@ -966,11 +966,12 @@ cdef public class JSContext[object jscontext_t, type jscontext]:
     def __dealloc__(self):
         JSGlobalContextRelease(self.jsCtx)
 
-cdef public JSContext PyJSContext_New(JSContextRef pyCtxExtern):
-    return JSContext(PyCapsule_New(pyCtxExtern, NULL, NULL))
+cdef api object PyJSContext_New(JSContextRef context):
+    #Can't pass C object to __init__. ALternative would be creating a PyCapsule
+    return JSContext(PyCapsule_New(context, "JSContextRef", NULL))
 
-cdef public JSContextRef PyJSContext_GetContext(jsCtx):
-    return <JSContextRef>PyCapsule_GetPointer(jsCtx.getCtx(), NULL)
+cdef api JSContextRef PyJSContext_GetContext(object ctx):
+    return <JSGlobalContextRef>ctx.jsCtx
 
 
 #

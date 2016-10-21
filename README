@@ -1,6 +1,10 @@
 Original copyright notice:
 
-  version 0.0004
+ version 0.0005
+ Readded support for python2.7+
+ Added C api for bindings into other modules
+
+ version 0.0004
   Added support for python3.1+
   Removed support for older versions. Please keep using 0.0003
 

@@ -3,6 +3,7 @@
 #
 # Copyright (C) 2009, Martin Soto <soto@freedesktop.org>
 # Copyright (C) 2009, john paul janecek (see README file)
+# Copyright (C) 2016, Adrian Freund
 #
 # PyJavaScriptCore is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public License
@@ -27,9 +28,8 @@ import sys
 import types
 import collections
 import weakref
-from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
-from cpython cimport bool as py_bool
 
+from cpython cimport bool as py_bool
 cdef:
     ctypedef unsigned short bool
 
@@ -56,7 +56,14 @@ class NullType(object):
             raise TypeError("cannot create '%s' instances"
                             % self.__class__.__name__)
 
+    #TODO: Somehow exclude of those methods at compile time
+    #Python3
     def __bool__(self):
+        # As in javascript, the Null value has a false boolean value.
+        return False
+
+    #Python2
+    def __nonzero__(self):
         # As in javascript, the Null value has a false boolean value.
         return False
 
@@ -142,9 +149,6 @@ cdef object jsToPython(JSContextRef jsCtx, JSValueRef jsValue):
         return <object>JSObjectGetPrivate(jsValue)
     else:
         return wrapJSObject(jsCtx, jsValue)
-
-    return None
-
 
 class JSException(Exception):
     """Python exception class to encapsulate JavaScript exceptions."""

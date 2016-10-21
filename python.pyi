@@ -29,3 +29,7 @@ cdef extern from "Python.h":
 
     object PyUnicode_DecodeUTF16(Py_UNICODE *u, Py_ssize_t size,
                                  char *errors, int byteorder)
+
+    ctypedef void * PyCapsule_Destructor
+    object PyCapsule_New(void *pointer, const char *name, PyCapsule_Destructor destructor)
+    void * PyCapsule_GetPointer(object capsule, const char *name)

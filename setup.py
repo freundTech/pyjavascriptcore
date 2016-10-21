@@ -3,6 +3,7 @@
 #
 # Copyright (C) 2009, Martin Soto <soto@freedesktop.org>
 # Copyright (C) 2009, john paul janecek (see README file)
+# Copyright (C) 2016, Adrian Freund
 #
 # PyJavaScriptCore is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public License
@@ -29,10 +30,13 @@ from distutils.extension import Extension
 from Cython.Distutils import build_ext
 import subprocess
 import sys
+import os
 
 version = "0.0005"
 description = "Javascript Core for Python"
-pkgconfig_file = "pyjavascriptcore.pc"
+python3 = sys.version_info.major >= 3
+pkgconfig_file = "py3javascriptcore.pc" if python3 else "pyjavascriptcore.pc"
+header_file = "py3javascriptcore.h" if python3 else "pyjavascriptcore.h"
 
 def createPcFile(PcFile):
     print("creating %s" % PcFile)
@@ -48,6 +52,13 @@ Cflags: -I${prefix}/include/pyjavascriptcore
 Libs:
 """ % (sys.prefix, description, version)
         )
+
+class custombuild_ext(build_ext):
+    def run(self):
+        build_ext.run(self)
+        if os.path.isfile("pyjavascriptcore_api.h"):
+            print("renaming pyjavascriptcore_api.h -> %s" % header_file)
+            os.rename("pyjavascriptcore_api.h", header_file)
 
 pkgconfig = subprocess.Popen("pkg-config --cflags webkit2gtk-4.0",
                              stdout=subprocess.PIPE, shell=True)
@@ -65,13 +76,13 @@ setup(
     name = "pyjavascriptcore",
     version = version,
     description = description, 
-    cmdclass = {'build_ext': build_ext},
+    cmdclass = {'build_ext': custombuild_ext},
     ext_modules = [Extension("javascriptcore", ["pyjavascriptcore.pyx"],
                              extra_compile_args = extra_compile_args,
                              extra_link_args = extra_link_args
                              )],
     data_files = [
-        ('include/pyjavascriptcore', ['pyjavascriptcore_api.h']),
+        ('include/pyjavascriptcore', [header_file]),
         ('lib/pkgconfig', [pkgconfig_file])
         ]
     )

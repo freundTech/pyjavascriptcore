@@ -37,7 +37,7 @@ python3 = sys.version_info.major >= 3
 name = "pyjavascriptcore"
 modulename = "javascriptcore"
 version = "0.0006"
-description = "Javascript Core for Python"
+description = "Javascript Core for Python (compiled against webkitgtk)"
 webkitversion = "webkitgtk-3.0"
 basefilename = "py%sjavascriptcore" % ("3" if python3 else "")
 pkgconfig_file = basefilename+".pc"

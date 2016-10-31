@@ -34,12 +34,12 @@ import os
 
 python3 = sys.version_info.major >= 3
 
-name = "pyjavascriptcore"
-modulename = "javascriptcore"
+name = "pyjavascriptcore3"
+modulename = "javascriptcore3"
 version = "0.0006"
-description = "Javascript Core for Python (compiled against webkitgtk)"
-webkitversion = "webkitgtk-3.0"
-basefilename = "py%sjavascriptcore" % ("3" if python3 else "")
+description = "Javascriptcore-3.0 for Python (for use with webkitgtk-3.0)"
+jscoreversion = "javascriptcoregtk-3.0"
+basefilename = "py%sjavascriptcore3" % ("3" if python3 else "")
 pkgconfig_file = basefilename+".pc"
 header_file = basefilename+".h"
 
@@ -49,13 +49,13 @@ def createPcFile(PcFile):
         fo.write("""\
 prefix=%s
 
-Name: PyJavaScriptCore
+Name: PyJavaScriptCore3
 Description: %s
 Version: %s
-Requires: webkitgtk-3.0
+Requires: %s
 Cflags: -I${prefix}/include/pyjavascriptcore
 Libs:
-""" % (sys.prefix, description, version)
+""" % (sys.prefix, description, version, jscoreversion)
         )
 
 class custombuild_ext(build_ext):
@@ -65,12 +65,12 @@ class custombuild_ext(build_ext):
             print("renaming pyjavascriptcore_api.h -> %s" % header_file)
             os.rename("pyjavascriptcore_api.h", header_file)
 
-pkgconfig = subprocess.Popen("pkg-config --cflags webkitgtk-3.0",
+pkgconfig = subprocess.Popen("pkg-config --cflags %s" % jscoreversion,
                              stdout=subprocess.PIPE, shell=True)
 pkgconfig.wait()
 extra_compile_args = [s.decode("utf-8") for s in pkgconfig.stdout.read().split()]
 
-pkgconfig = subprocess.Popen("pkg-config --libs webkitgtk-3.0",
+pkgconfig = subprocess.Popen("pkg-config --libs %s" % jscoreversion,
                              stdout=subprocess.PIPE, shell=True)
 pkgconfig.wait()
 extra_link_args = [s.decode("utf-8") for s in pkgconfig.stdout.read().split()]

@@ -495,7 +495,7 @@ cdef class _JSSequence(_JSBaseObject):
                 self.setLength(dest)
         else:
             raise TypeError, "list indices must be integers, not %s" % \
-                pyIndex.__class__.__name__        
+                pyIndex.__class__.__name__
 
     def insert(self, pyIndex, pyValue):
         cdef int index
@@ -603,7 +603,7 @@ cdef class _JSObject(_JSBaseObject):
             elif not JSValueIsObjectOfClass(self.jsCtx, jsResult,
                                           pyObjectClass) and \
                   JSValueIsObject(self.jsCtx, jsResult) and \
-                  JSObjectIsFunction(self.jsCtx, jsResult):                  
+                  JSObjectIsFunction(self.jsCtx, jsResult):
                 # This is a native JavaScript function, we mimic
                 # Python's behavior and return it bound to this
                 # object.
@@ -863,7 +863,7 @@ cdef class _JSBoundMethod(_JSObject):
     This class gets mixed with ``collections.MutableMapping in the
     ``JSBoundMethod`` class."""
 
-    cdef JSObjectRef jsThisObj 
+    cdef JSObjectRef jsThisObj
 
     cdef setup2(self, JSContextRef jsCtx, JSObjectRef jsObject,
                 JSObjectRef jsThisObj):
@@ -1057,7 +1057,7 @@ cdef bool pyObjDeleteProperty(JSContextRef jsCtx,
         # attributes can't be found.
         return False
     except BaseException, e:
-        jsExc[0] = pyExceptionToJS(jsCtx, e)    
+        jsExc[0] = pyExceptionToJS(jsCtx, e)
 
 cdef JSValueRef pyObjCallAsFunction(JSContextRef jsCtx,
                                     JSObjectRef jsObj,
@@ -1211,7 +1211,7 @@ cdef bool pySeqSetLength(JSContextRef jsCtx,
     except BaseException, e:
         jsExc[0] = pyExceptionToJS(jsCtx, e)
         return False
-    
+
 
 pySeqStaticProps[0].name = "length"
 pySeqStaticProps[0].getProperty = pySeqGetLength

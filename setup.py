@@ -34,12 +34,12 @@ import os
 
 python3 = sys.version_info.major >= 3
 
-name = "pyjavascriptcore4"
-modulename = "javascriptcore4"
+name = "pyjavascriptcore3"
+modulename = "javascriptcore3"
 version = "0.0006"
-description = "Javascriptcore-4.0 for Python (for use with webkit2gtk-4.0)"
-jscoreversion = "javascriptcoregtk-4.0"
-basefilename = "py%sjavascriptcore4" % ("3" if python3 else "")
+description = "Javascriptcore-3.0 for Python (for use with webkitgtk-3.0)"
+jscoreversion = "javascriptcoregtk-3.0"
+basefilename = "py%sjavascriptcore3" % ("3" if python3 else "")
 pkgconfig_file = basefilename+".pc"
 header_file = basefilename+".h"
 
@@ -49,7 +49,7 @@ def createPcFile(PcFile):
         fo.write("""\
 prefix=%s
 
-Name: PyJavaScriptCore4
+Name: PyJavaScriptCore3
 Description: %s
 Version: %s
 Requires: %s

@@ -970,11 +970,11 @@ cdef class JSContext:
     def __dealloc__(self):
         JSGlobalContextRelease(self.jsCtx)
 
-cdef api object PyJSContext_New(JSContextRef context):
+cdef api object PyJSContext4_New(JSContextRef context):
     #Can't pass C object to __init__. ALternative would be creating a PyCapsule
     return JSContext(PyCapsule_New(context, "JSContextRef", NULL))
 
-cdef api JSContextRef PyJSContext_GetContext(object ctx):
+cdef api JSContextRef PyJSContext4_GetContext(object ctx):
     return <JSGlobalContextRef>ctx.jsCtx
 
 
